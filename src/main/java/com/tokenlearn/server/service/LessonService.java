@@ -150,15 +150,16 @@ public class LessonService {
             Integer withUserId = isTeacher ? lesson.getStudentId() : lesson.getTutorId();
             UserEntity withUser = userDao.findById(withUserId).orElse(null);
             String courseName = courseDao.findById(lesson.getCourseId()).map(c -> c.getName()).orElse("");
-            return Map.of(
-                    "id", lesson.getLessonId(),
-                    "role", isTeacher ? "teacher" : "student",
-                    "withUserId", withUserId,
-                    "withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName(),
-                    "topic", courseName,
-                    "dateTime", lesson.getStartTime(),
-                    "tokenCost", lesson.getTokenCost(),
-                    "status", lesson.getStatus().toLowerCase());
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", lesson.getLessonId());
+            out.put("role", isTeacher ? "teacher" : "student");
+            out.put("withUserId", withUserId);
+            out.put("withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName());
+            out.put("topic", courseName);
+            out.put("dateTime", lesson.getStartTime());
+            out.put("tokenCost", lesson.getTokenCost());
+            out.put("status", lesson.getStatus().toLowerCase());
+            return out;
         }).toList();
     }
 
@@ -193,15 +194,16 @@ public class LessonService {
             Integer withUserId = asTeacher ? lesson.getStudentId() : lesson.getTutorId();
             UserEntity withUser = userDao.findById(withUserId).orElse(null);
             String courseName = courseDao.findById(lesson.getCourseId()).map(c -> c.getName()).orElse("");
-            return Map.of(
-                    "id", lesson.getLessonId(),
-                    "role", asTeacher ? "teacher" : "student",
-                    "withUserId", withUserId,
-                    "withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName(),
-                    "topic", courseName,
-                    "dateTime", lesson.getStartTime(),
-                    "tokenCost", lesson.getTokenCost(),
-                    "status", lesson.getStatus().toLowerCase());
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", lesson.getLessonId());
+            out.put("role", asTeacher ? "teacher" : "student");
+            out.put("withUserId", withUserId);
+            out.put("withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName());
+            out.put("topic", courseName);
+            out.put("dateTime", lesson.getStartTime());
+            out.put("tokenCost", lesson.getTokenCost());
+            out.put("status", lesson.getStatus().toLowerCase());
+            return out;
         }).toList();
     }
 

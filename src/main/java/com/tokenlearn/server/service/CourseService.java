@@ -4,6 +4,7 @@ import com.tokenlearn.server.dao.CourseDao;
 import com.tokenlearn.server.dto.SimpleCourseDto;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,7 +18,13 @@ public class CourseService {
 
     public List<Map<String, Object>> getCourses(String search, String category) {
         return courseDao.findAll(search, category).stream()
-                .map(c -> Map.of("id", c.getCourseId(), "name", c.getName(), "category", c.getCategory() == null ? "" : c.getCategory()))
+                .map(c -> {
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("id", c.getCourseId());
+                    out.put("name", c.getName());
+                    out.put("category", c.getCategory() == null ? "" : c.getCategory());
+                    return out;
+                })
                 .toList();
     }
 

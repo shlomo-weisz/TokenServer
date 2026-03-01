@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   artemis:
-    image: vromero/activemq-artemis:2.31.2
+    image: vromero/activemq-artemis:latest
     container_name: tokenlearn-artemis
     environment:
       ARTEMIS_USERNAME: "admin"

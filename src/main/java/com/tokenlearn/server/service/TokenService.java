@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -89,12 +90,13 @@ public class TokenService {
                 case "REFUND" -> "refund";
                 default -> tx.getTxType().toLowerCase();
             };
-            return Map.of(
-                    "id", "txn_" + tx.getTxId(),
-                    "type", type,
-                    "amount", signedAmount,
-                    "reason", tx.getDescription() == null ? "" : tx.getDescription(),
-                    "createdAt", tx.getCreatedAt());
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", "txn_" + tx.getTxId());
+            item.put("type", type);
+            item.put("amount", signedAmount);
+            item.put("reason", tx.getDescription() == null ? "" : tx.getDescription());
+            item.put("createdAt", tx.getCreatedAt());
+            return item;
         }).toList();
         return Map.of("transactions", txs, "totalCount", transactionDao.countByUser(userId));
     }
