@@ -23,24 +23,51 @@ mvn spring-boot:run
 
 ## Run With Docker (Server + DB + JMS)
 
-1. Build and start:
+### Prerequisites
+- Docker Engine + Docker Compose plugin installed.
+- Port `8080`, `1433`, `61616`, and `8161` must be free.
+
+### 1) Start all services
 ```bash
 docker compose up -d --build
 ```
 
-2. Create the DB once:
+### 2) Wait for SQL Server to be ready
 ```bash
-docker exec -it tokenlearn-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "YourStrong!Passw0rd" -Q "IF DB_ID('tokenlearn') IS NULL CREATE DATABASE tokenlearn;"
+docker logs -f tokenlearn-sqlserver
+```
+When you see `SQL Server is now ready for client connections`, stop following logs (`Ctrl+C`).
+
+### 3) Create the `tokenlearn` database (idempotent)
+```bash
+docker exec tokenlearn-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "YourStrong!Passw0rd" -Q "IF DB_ID('tokenlearn') IS NULL CREATE DATABASE tokenlearn;"
 ```
 
-3. Restart the app service so Flyway migrates the new DB:
+### 4) Restart backend so Flyway runs against the new DB
 ```bash
 docker compose restart tokenlearn-server
 ```
 
-4. Health check:
+### 5) Validate health
 ```bash
 curl http://localhost:8080/health
+```
+Expected response (wrapped by API format):
+```json
+{"success":true,"data":{"status":"UP"}}
+```
+
+### 6) Optional checks
+```bash
+docker compose ps
+curl http://localhost:8161
+```
+- Artemis Web Console: `http://localhost:8161` (`admin` / `admin`).
+
+### Stop / cleanup
+```bash
+docker compose down
+docker compose down -v   # also deletes SQL Server volume
 ```
 
 ## Core financial model
