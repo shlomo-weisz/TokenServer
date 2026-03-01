@@ -1,0 +1,77 @@
+package com.tokenlearn.server.controller;
+
+import com.tokenlearn.server.dto.ApiResponse;
+import com.tokenlearn.server.dto.RateLessonRequest;
+import com.tokenlearn.server.service.LessonService;
+import com.tokenlearn.server.util.AuthUtil;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+import static com.tokenlearn.server.controller.ApiResponses.ok;
+
+@RestController
+@RequestMapping("/api/lessons")
+public class LessonController {
+    private final LessonService lessonService;
+
+    public LessonController(LessonService lessonService) {
+        this.lessonService = lessonService;
+    }
+
+    @GetMapping("/upcoming")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> upcoming(
+            Authentication authentication,
+            @RequestParam(required = false) String role) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.upcoming(userId, role));
+    }
+
+    @GetMapping("/{lessonId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> details(
+            Authentication authentication,
+            @PathVariable Integer lessonId) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.details(lessonId, userId));
+    }
+
+    @PutMapping("/{lessonId}/complete")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> complete(
+            Authentication authentication,
+            @PathVariable Integer lessonId,
+            @RequestBody(required = false) Map<String, Object> metadata) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.completeLesson(lessonId, userId));
+    }
+
+    @DeleteMapping("/{lessonId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cancel(
+            Authentication authentication,
+            @PathVariable Integer lessonId,
+            @RequestBody(required = false) Map<String, String> request) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        String reason = request == null ? null : request.get("reason");
+        return ok(lessonService.cancelLesson(lessonId, userId, reason));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> history(
+            Authentication authentication,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.history(userId, limit, offset));
+    }
+
+    @PostMapping("/{lessonId}/rate")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rate(
+            Authentication authentication,
+            @PathVariable Integer lessonId,
+            @RequestBody RateLessonRequest request) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.rateLesson(lessonId, userId, request));
+    }
+}

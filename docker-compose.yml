@@ -1,0 +1,50 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: tokenlearn-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    restart: unless-stopped
+
+  artemis:
+    image: vromero/activemq-artemis:2.31.2
+    container_name: tokenlearn-artemis
+    environment:
+      ARTEMIS_USERNAME: "admin"
+      ARTEMIS_PASSWORD: "admin"
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    restart: unless-stopped
+
+  tokenlearn-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tokenlearn-server
+    depends_on:
+      - sqlserver
+      - artemis
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:sqlserver://sqlserver:1433;databaseName=tokenlearn;encrypt=false"
+      SPRING_DATASOURCE_USERNAME: "sa"
+      SPRING_DATASOURCE_PASSWORD: "YourStrong!Passw0rd"
+      SPRING_ARTEMIS_MODE: "native"
+      SPRING_ARTEMIS_BROKER_URL: "tcp://artemis:61616"
+      SPRING_ARTEMIS_USER: "admin"
+      SPRING_ARTEMIS_PASSWORD: "admin"
+      JWT_SECRET: "VG9rZW5MZWFyblNlcnZlclNlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvbkFuZFZlcmlmaWNhdGlvbg=="
+      JWT_EXPIRATION: "86400000"
+      SPRING_FLYWAY_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    restart: on-failure
+
+volumes:
+  sqlserver_data:

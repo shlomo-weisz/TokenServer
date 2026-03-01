@@ -1,0 +1,101 @@
+package com.tokenlearn.server.service;
+
+import com.tokenlearn.server.dao.TokenTransactionDao;
+import com.tokenlearn.server.dao.UserDao;
+import com.tokenlearn.server.domain.TokenTransactionEntity;
+import com.tokenlearn.server.domain.UserEntity;
+import com.tokenlearn.server.dto.BuyTokensRequest;
+import com.tokenlearn.server.dto.TokenBalancesDto;
+import com.tokenlearn.server.dto.TransferTokensRequest;
+import com.tokenlearn.server.exception.AppException;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class TokenService {
+    private final UserDao userDao;
+    private final TokenTransactionDao transactionDao;
+
+    public TokenService(UserDao userDao, TokenTransactionDao transactionDao) {
+        this.userDao = userDao;
+        this.transactionDao = transactionDao;
+    }
+
+    public Map<String, Object> getBalance(Integer userId) {
+        TokenBalancesDto b = userDao.getBalances(userId);
+        return Map.of(
+                "balance", b.getTotal(),
+                "total", b.getTotal(),
+                "available", b.getAvailable(),
+                "locked", b.getLocked(),
+                "futureTutorEarnings", b.getFutureTutorEarnings(),
+                "pendingTransfers", b.getPendingTransfers());
+    }
+
+    @Transactional
+    public Map<String, Object> buy(Integer userId, BuyTokensRequest request) {
+        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_AMOUNT", "Amount must be positive");
+        }
+        userDao.addAvailable(userId, request.getAmount());
+        Long txId = transactionDao.create(TokenTransactionEntity.builder()
+                .payerId(userId)
+                .receiverId(userId)
+                .amount(request.getAmount())
+                .txType("PURCHASE")
+                .status("SUCCESS")
+                .description("Token purchase")
+                .build());
+        TokenBalancesDto b = userDao.getBalances(userId);
+        return Map.of("success", true, "newBalance", b.getTotal(), "transactionId", "txn_" + txId);
+    }
+
+    @Transactional
+    public Map<String, Object> transfer(Integer fromUserId, TransferTokensRequest request) {
+        if (fromUserId.equals(request.getToUserId())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Cannot transfer to self");
+        }
+        UserEntity to = userDao.findById(request.getToUserId())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Recipient not found"));
+        if (!userDao.transferAvailable(fromUserId, to.getUserId(), request.getAmount())) {
+            throw new AppException(HttpStatus.PAYMENT_REQUIRED, "INSUFFICIENT_BALANCE", "Insufficient available balance");
+        }
+        Long txId = transactionDao.create(TokenTransactionEntity.builder()
+                .lessonId(request.getLessonId())
+                .payerId(fromUserId)
+                .receiverId(to.getUserId())
+                .amount(request.getAmount())
+                .txType("TRANSFER")
+                .status("SUCCESS")
+                .description(request.getReason() == null ? "Token transfer" : request.getReason())
+                .build());
+        TokenBalancesDto b = userDao.getBalances(fromUserId);
+        return Map.of("success", true, "newBalance", b.getTotal(), "transactionId", "txn_" + txId);
+    }
+
+    public Map<String, Object> history(Integer userId, int limit, int offset) {
+        List<Map<String, Object>> txs = transactionDao.findByUser(userId, limit, offset).stream().map(tx -> {
+            BigDecimal signedAmount = tx.getPayerId().equals(userId) ? tx.getAmount().negate() : tx.getAmount();
+            String type = switch (tx.getTxType()) {
+                case "PURCHASE" -> "purchase";
+                case "BONUS" -> "bonus";
+                case "TRANSFER", "SETTLEMENT" -> tx.getPayerId().equals(userId) ? "transfer_out" : "transfer_in";
+                case "RESERVATION" -> "reservation";
+                case "REFUND" -> "refund";
+                default -> tx.getTxType().toLowerCase();
+            };
+            return Map.of(
+                    "id", "txn_" + tx.getTxId(),
+                    "type", type,
+                    "amount", signedAmount,
+                    "reason", tx.getDescription() == null ? "" : tx.getDescription(),
+                    "createdAt", tx.getCreatedAt());
+        }).toList();
+        return Map.of("transactions", txs, "totalCount", transactionDao.countByUser(userId));
+    }
+}
