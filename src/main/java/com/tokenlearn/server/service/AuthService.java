@@ -25,6 +25,7 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final PasswordResetDao passwordResetDao;
     private final TokenTransactionDao tokenTransactionDao;
+    private final GoogleTokenVerifier googleTokenVerifier;
 
     @Value("${app.reset-token-exp-minutes:15}")
     private int resetTokenMinutes;
@@ -39,12 +40,14 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtProvider jwtProvider,
             PasswordResetDao passwordResetDao,
-            TokenTransactionDao tokenTransactionDao) {
+            TokenTransactionDao tokenTransactionDao,
+            GoogleTokenVerifier googleTokenVerifier) {
         this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
         this.passwordResetDao = passwordResetDao;
         this.tokenTransactionDao = tokenTransactionDao;
+        this.googleTokenVerifier = googleTokenVerifier;
     }
 
     @Transactional
@@ -143,16 +146,41 @@ public class AuthService {
 
     @Transactional
     public AuthPayloadDto googleLogin(GoogleAuthRequest request) {
-        String suffix = Integer.toHexString(request.getGoogleToken().hashCode());
-        String email = "google_" + suffix + "@tokenlearn.local";
-        UserEntity user = userDao.findByEmail(email).orElseGet(() -> {
+        GoogleTokenVerifier.GoogleUserClaims claims = googleTokenVerifier.verify(request.getGoogleToken());
+        UserEntity user = userDao.findByEmail(claims.email()).map(existing -> {
+            boolean changed = false;
+            if (claims.givenName() != null && !claims.givenName().equals(existing.getFirstName())) {
+                existing.setFirstName(claims.givenName());
+                changed = true;
+            }
+            if (claims.familyName() != null && !claims.familyName().equals(existing.getLastName())) {
+                existing.setLastName(claims.familyName());
+                changed = true;
+            }
+            if (claims.pictureUrl() != null && !claims.pictureUrl().equals(existing.getPhotoUrl())) {
+                existing.setPhotoUrl(claims.pictureUrl());
+                changed = true;
+            }
+            if (changed) {
+                userDao.updateProfile(
+                        existing.getUserId(),
+                        existing.getFirstName(),
+                        existing.getLastName(),
+                        existing.getPhone(),
+                        existing.getPhotoUrl(),
+                        existing.getAboutMeAsTeacher(),
+                        existing.getAboutMeAsStudent());
+            }
+            return existing;
+        }).orElseGet(() -> {
             UserEntity created = UserEntity.builder()
-                    .email(email)
+                    .email(claims.email())
                     .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
-                    .firstName("Google")
-                    .lastName("User")
+                    .firstName(claims.givenName() == null ? "Google" : claims.givenName())
+                    .lastName(claims.familyName() == null ? "User" : claims.familyName())
+                    .photoUrl(claims.pictureUrl())
                     .secretQuestion("Google account")
-                    .secretAnswerHash(passwordEncoder.encode("google"))
+                    .secretAnswerHash(passwordEncoder.encode(UUID.randomUUID().toString()))
                     .isAdmin(false)
                     .isActive(true)
                     .availableBalance(BigDecimal.ZERO)

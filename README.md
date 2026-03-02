@@ -70,6 +70,22 @@ docker compose down
 docker compose down -v   # also deletes SQL Server volume
 ```
 
+## Google Sign-In configuration
+
+To enable real Google login verification on the backend, configure your OAuth Web Client ID:
+
+```properties
+google.client-id=YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com
+```
+
+The `/api/auth/google` endpoint expects a Google **ID token** in this payload:
+
+```json
+{ "googleToken": "<google_id_token>" }
+```
+
+The server verifies signature/issuer/expiry via Google JWKS, validates audience against `google.client-id`, and requires `email_verified=true`.
+
 ## Core financial model
 
 - `available_balance`: spendable
