@@ -9,6 +9,7 @@ import com.tokenlearn.server.dto.AvailabilityDto;
 import com.tokenlearn.server.dto.SimpleCourseDto;
 import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.util.CourseLabelUtil;
+import com.tokenlearn.server.util.WeekdayUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -31,12 +32,12 @@ public class TutorService {
         this.userDao = userDao;
     }
 
-    public List<Map<String, Object>> recommended(int limit, BigDecimal minRating) {
-        return enrichTutorRows(tutorDao.findRecommended(limit, minRating));
+    public List<Map<String, Object>> recommended(Integer userId, int limit, BigDecimal minRating) {
+        return enrichTutorRows(tutorDao.findRecommended(userId, limit, minRating));
     }
 
-    public List<Map<String, Object>> search(String course, BigDecimal minRating, int limit) {
-        return enrichTutorRows(tutorDao.searchTutors(course, minRating, limit));
+    public List<Map<String, Object>> search(Integer userId, String course, BigDecimal minRating, int limit) {
+        return enrichTutorRows(tutorDao.searchTutors(userId, course, minRating, limit));
     }
 
     public Map<String, Object> profile(Integer tutorId) {
@@ -58,6 +59,9 @@ public class TutorService {
         out.put("photoUrl", tutor.getPhotoUrl() == null ? "" : tutor.getPhotoUrl());
         out.put("aboutMeAsTeacher", tutor.getAboutMeAsTeacher() == null ? "" : tutor.getAboutMeAsTeacher());
         out.put("rating", tutorDao.ratingForTutor(tutorId));
+        int lessons = userDao.countCompletedLessonsAsTutor(tutorId);
+        out.put("lessons", lessons);
+        out.put("totalLessonsAsTutor", lessons);
         out.put("courseOptions", courses);
         out.put("coursesAsTeacher", courses);
         out.put("courses", courses.stream().map(SimpleCourseDto::getName).toList());
@@ -69,7 +73,7 @@ public class TutorService {
         return availabilityDao.findByUserAndRole(tutorId, "teacher").stream()
                 .map(a -> AvailabilityDto.builder()
                         .id(a.getAvailabilityId())
-                        .day(a.getDay())
+                        .day(WeekdayUtil.normalizeToEnglishOrNull(a.getDay()))
                         .startTime(a.getStartTime().toString())
                         .endTime(a.getEndTime().toString())
                         .isAvailable(true)
@@ -97,8 +101,26 @@ public class TutorService {
             out.put("coursesAsTeacher", courses);
             out.put("courses", courses.stream().map(SimpleCourseDto::getName).toList());
             out.put("photoUrl", row.get("photoUrl") == null ? "" : row.get("photoUrl"));
+            out.put("aboutMeAsTeacher", row.get("aboutMeAsTeacher") == null ? "" : row.get("aboutMeAsTeacher"));
+            int lessons = asInt(row.get("lessons"));
+            out.put("lessons", lessons);
+            out.put("totalLessonsAsTutor", lessons);
             out.put("availabilityAsTeacher", availability(tutorId));
             return out;
         }).toList();
+    }
+
+    private int asInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 }

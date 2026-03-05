@@ -15,15 +15,20 @@ import com.tokenlearn.server.dto.RejectLessonRequestInputDto;
 import com.tokenlearn.server.dto.RequestedSlotDto;
 import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.util.CourseLabelUtil;
+import com.tokenlearn.server.util.WeekdayUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.TextStyle;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,19 +40,22 @@ public class LessonRequestService {
     private final TutorDao tutorDao;
     private final TokenTransactionDao tokenTransactionDao;
     private final LessonDao lessonDao;
+    private final NotificationService notificationService;
 
     public LessonRequestService(LessonRequestDao lessonRequestDao,
             UserDao userDao,
             CourseDao courseDao,
             TutorDao tutorDao,
             TokenTransactionDao tokenTransactionDao,
-            LessonDao lessonDao) {
+            LessonDao lessonDao,
+            NotificationService notificationService) {
         this.lessonRequestDao = lessonRequestDao;
         this.userDao = userDao;
         this.courseDao = courseDao;
         this.tutorDao = tutorDao;
         this.tokenTransactionDao = tokenTransactionDao;
         this.lessonDao = lessonDao;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -126,6 +134,8 @@ public class LessonRequestService {
                 .status("SCHEDULED")
                 .build());
 
+        notificationService.createLessonRequestApprovedNotification(req, lessonId, start);
+
         return Map.of("requestId", requestId, "status", "approved", "lessonId", lessonId);
     }
 
@@ -155,6 +165,7 @@ public class LessonRequestService {
                 .status("SUCCESS")
                 .description("Refund due to request rejection")
                 .build());
+        notificationService.createLessonRequestRejectedNotification(req, reason);
 
         return Map.of(
                 "requestId", req.getRequestId(),
@@ -255,26 +266,60 @@ public class LessonRequestService {
         if (slot == null) {
             return new Slot(null, null, null, null, null);
         }
+        String normalizedDay = WeekdayUtil.normalizeToEnglishOrNull(slot.getDay());
+        if (normalizedDay == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_DAY", "Requested day is invalid");
+        }
+
         LocalTime start = slot.getStartTime() == null ? null : LocalTime.parse(slot.getStartTime());
         LocalTime end = slot.getEndTime() == null ? null : LocalTime.parse(slot.getEndTime());
-        LocalDateTime specificStart = parseDateTimeFlexible(slot.getSpecificStartTime());
-        LocalDateTime specificEnd = parseDateTimeFlexible(slot.getSpecificEndTime());
-        return new Slot(slot.getDay(), start, end, specificStart, specificEnd);
+        if (start == null || end == null || !end.isAfter(start)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_WINDOW", "Requested slot start/end time is invalid");
+        }
+
+        LocalDateTime specificStart = parseDateTimeFlexible(slot.getSpecificStartTime(), normalizedDay);
+        LocalDateTime specificEnd = parseDateTimeFlexible(slot.getSpecificEndTime(), normalizedDay);
+        if (specificStart == null || specificEnd == null || !specificEnd.isAfter(specificStart)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SPECIFIC_TIME", "Specific lesson time is invalid");
+        }
+        if (!specificStart.toLocalDate().equals(specificEnd.toLocalDate())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SPECIFIC_TIME", "Lesson must start and end on the same date");
+        }
+
+        String specificDay = specificStart.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+        if (!specificDay.equals(normalizedDay)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "DAY_DATE_MISMATCH", "Selected date does not match requested day");
+        }
+        if (specificStart.toLocalTime().isBefore(start) || specificEnd.toLocalTime().isAfter(end)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TIME_OUT_OF_RANGE", "Selected time is outside tutor availability window");
+        }
+
+        return new Slot(normalizedDay, start, end, specificStart, specificEnd);
     }
 
-    private LocalDateTime parseDateTimeFlexible(String value) {
+    private LocalDateTime parseDateTimeFlexible(String value, String dayEnglish) {
         if (value == null || value.isBlank()) {
             return null;
         }
         if (value.length() <= 5) {
-            return LocalDateTime.now().with(LocalTime.parse(value));
+            LocalDate date = nextOrSameByEnglishDay(dayEnglish);
+            return LocalDateTime.of(date, LocalTime.parse(value));
         }
         return LocalDateTime.parse(value);
     }
 
+    private LocalDate nextOrSameByEnglishDay(String dayEnglish) {
+        DayOfWeek target = DayOfWeek.valueOf(dayEnglish.toUpperCase(Locale.ROOT));
+        LocalDate date = LocalDate.now();
+        while (date.getDayOfWeek() != target) {
+            date = date.plusDays(1);
+        }
+        return date;
+    }
+
     private Map<String, Object> slotMap(LessonRequestEntity req) {
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("day", req.getRequestedDay());
+        out.put("day", WeekdayUtil.normalizeToEnglishOrNull(req.getRequestedDay()));
         out.put("startTime", req.getRequestedStartTime() == null ? null : req.getRequestedStartTime().toString());
         out.put("endTime", req.getRequestedEndTime() == null ? null : req.getRequestedEndTime().toString());
         out.put("specificStartTime", req.getSpecificStartTime());

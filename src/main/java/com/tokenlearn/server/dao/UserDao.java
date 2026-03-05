@@ -110,6 +110,12 @@ public class UserDao {
         return count == null ? 0 : count;
     }
 
+    public int countCompletedLessonsAsTutor(Integer userId) {
+        String sql = "SELECT COUNT(*) FROM lessons WHERE tutor_id = :userId AND status = 'COMPLETED'";
+        Integer count = jdbc.queryForObject(sql, new MapSqlParameterSource("userId", userId), Integer.class);
+        return count == null ? 0 : count;
+    }
+
     public void updatePasswordByEmail(String email, String passwordHash) {
         String sql = "UPDATE users SET password_hash=:passwordHash, updated_at=GETUTCDATE() WHERE email=:email";
         jdbc.update(sql, new MapSqlParameterSource().addValue("email", email).addValue("passwordHash", passwordHash));
@@ -324,6 +330,7 @@ public class UserDao {
                 "DELETE FROM token_transactions WHERE payer_id = :userId OR receiver_id = :userId OR request_id IN (" + userRequestIdsSql
                         + ") OR lesson_id IN (" + userLessonIdsSql + ")",
                 params);
+        jdbc.update("DELETE FROM notifications WHERE user_id = :userId", params);
         jdbc.update(
                 "DELETE FROM ratings WHERE from_user_id = :userId OR to_user_id = :userId OR lesson_id IN (" + userLessonIdsSql + ")",
                 params);

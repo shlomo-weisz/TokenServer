@@ -16,39 +16,48 @@ public class TutorDao {
         this.jdbc = jdbc;
     }
 
-    public List<Map<String, Object>> findRecommended(int limit, BigDecimal minRating) {
+    public List<Map<String, Object>> findRecommended(Integer excludeUserId, int limit, BigDecimal minRating) {
         String sql = """
                 SELECT
                     u.user_id AS id,
                     CONCAT(u.first_name, ' ', u.last_name) AS name,
                     u.photo_url AS photoUrl,
-                    COALESCE(AVG(r.score), 0) AS rating
+                    u.about_me_as_teacher AS aboutMeAsTeacher,
+                    COALESCE(AVG(r.score), 0) AS rating,
+                    COUNT(DISTINCT CASE WHEN l.status = 'COMPLETED' THEN l.lesson_id END) AS lessons
                 FROM users u
                 INNER JOIN user_courses_teacher uct ON uct.user_id = u.user_id
                 LEFT JOIN ratings r ON r.to_user_id = u.user_id
+                LEFT JOIN lessons l ON l.tutor_id = u.user_id
                 WHERE u.is_blocked_tutor = 0
-                GROUP BY u.user_id, u.first_name, u.last_name, u.photo_url
+                  AND u.user_id <> :excludeUserId
+                GROUP BY u.user_id, u.first_name, u.last_name, u.photo_url, u.about_me_as_teacher
                 HAVING COALESCE(AVG(r.score), 0) >= :minRating
                 ORDER BY rating DESC, name ASC
                 OFFSET 0 ROWS FETCH NEXT :limit ROWS ONLY
                 """;
         return jdbc.queryForList(sql, new MapSqlParameterSource()
+                .addValue("excludeUserId", excludeUserId)
                 .addValue("limit", limit)
                 .addValue("minRating", minRating));
     }
 
-    public List<Map<String, Object>> searchTutors(String courseName, BigDecimal minRating, int limit) {
+    public List<Map<String, Object>> searchTutors(Integer excludeUserId, String courseName, BigDecimal minRating, int limit) {
         String sql = """
                 SELECT
                     u.user_id AS id,
                     CONCAT(u.first_name, ' ', u.last_name) AS name,
                     u.photo_url AS photoUrl,
-                    COALESCE(AVG(r.score), 0) AS rating
+                    u.about_me_as_teacher AS aboutMeAsTeacher,
+                    COALESCE(AVG(r.score), 0) AS rating,
+                    COUNT(DISTINCT CASE WHEN l.status = 'COMPLETED' THEN l.lesson_id END) AS lessons
                 FROM users u
                 INNER JOIN user_courses_teacher uct ON uct.user_id = u.user_id
                 INNER JOIN courses c ON c.course_id = uct.course_id
                 LEFT JOIN ratings r ON r.to_user_id = u.user_id
+                LEFT JOIN lessons l ON l.tutor_id = u.user_id
                 WHERE u.is_blocked_tutor = 0
+                  AND u.user_id <> :excludeUserId
                   AND (
                       :courseName IS NULL
                       OR LOWER(c.name) LIKE LOWER(CONCAT('%', :courseName, '%'))
@@ -56,12 +65,13 @@ public class TutorDao {
                       OR LOWER(c.name_en) LIKE LOWER(CONCAT('%', :courseName, '%'))
                       OR c.course_number LIKE CONCAT('%', :courseName, '%')
                   )
-                GROUP BY u.user_id, u.first_name, u.last_name, u.photo_url
+                GROUP BY u.user_id, u.first_name, u.last_name, u.photo_url, u.about_me_as_teacher
                 HAVING COALESCE(AVG(r.score), 0) >= :minRating
                 ORDER BY rating DESC, name ASC
                 OFFSET 0 ROWS FETCH NEXT :limit ROWS ONLY
                 """;
         return jdbc.queryForList(sql, new MapSqlParameterSource()
+                .addValue("excludeUserId", excludeUserId)
                 .addValue("courseName", courseName)
                 .addValue("minRating", minRating)
                 .addValue("limit", limit));

@@ -58,7 +58,7 @@ public class LessonRequestController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> reject(
             Authentication authentication,
             @PathVariable Integer requestId,
-            @RequestBody RejectLessonRequestInputDto input) {
+            @Valid @RequestBody RejectLessonRequestInputDto input) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(lessonRequestService.reject(requestId, userId, input));
     }

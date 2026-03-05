@@ -11,6 +11,7 @@ import com.tokenlearn.server.domain.UserEntity;
 import com.tokenlearn.server.dto.*;
 import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.util.CourseLabelUtil;
+import com.tokenlearn.server.util.WeekdayUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,7 +48,7 @@ public class UserService {
         UserEntity user = requireUser(userId);
         TokenBalancesDto balances = userDao.getBalances(userId);
         BigDecimal rating = ratingDao.averageForUser(userId);
-        int totalLessonsAsTutor = 0;
+        int totalLessonsAsTutor = userDao.countCompletedLessonsAsTutor(userId);
         List<SimpleCourseDto> teacherCourses = toSimpleCourses(courseDao.findTeacherCourses(userId));
         List<SimpleCourseDto> studentCourses = toSimpleCourses(courseDao.findStudentCourses(userId));
 
@@ -177,13 +178,33 @@ public class UserService {
     private List<AvailabilityEntity> toAvailabilityEntities(Integer userId, String role, List<AvailabilityInputDto> input) {
         List<AvailabilityEntity> result = new ArrayList<>();
         for (AvailabilityInputDto dto : input) {
+            if (dto == null
+                    || dto.getDay() == null || dto.getDay().isBlank()
+                    || dto.getStartTime() == null || dto.getStartTime().isBlank()
+                    || dto.getEndTime() == null || dto.getEndTime().isBlank()) {
+                throw new AppException(
+                        HttpStatus.BAD_REQUEST,
+                        "INCOMPLETE_AVAILABILITY",
+                        "Each availability slot must include day, startTime, and endTime");
+            }
+
+            String normalizedDay = WeekdayUtil.normalizeToEnglishOrNull(dto.getDay());
+            if (normalizedDay == null) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_DAY", "Availability day is invalid");
+            }
+
             try {
+                LocalTime start = LocalTime.parse(dto.getStartTime().trim());
+                LocalTime end = LocalTime.parse(dto.getEndTime().trim());
+                if (!end.isAfter(start)) {
+                    throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_TIME_RANGE", "Availability endTime must be after startTime");
+                }
                 result.add(AvailabilityEntity.builder()
                         .userId(userId)
                         .role(role)
-                        .day(dto.getDay())
-                        .startTime(LocalTime.parse(dto.getStartTime()))
-                        .endTime(LocalTime.parse(dto.getEndTime()))
+                        .day(normalizedDay)
+                        .startTime(start)
+                        .endTime(end)
                         .build());
             } catch (DateTimeParseException ex) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_TIME", "Invalid availability time format");
@@ -195,7 +216,7 @@ public class UserService {
     private List<AvailabilityDto> toAvailabilityDtos(List<AvailabilityEntity> entities, boolean includeIsAvailable) {
         return entities.stream().map(a -> AvailabilityDto.builder()
                 .id(a.getAvailabilityId())
-                .day(a.getDay())
+                .day(WeekdayUtil.normalizeToEnglishOrNull(a.getDay()))
                 .startTime(a.getStartTime().toString())
                 .endTime(a.getEndTime().toString())
                 .isAvailable(includeIsAvailable ? true : null)

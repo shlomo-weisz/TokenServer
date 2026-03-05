@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class AuthPayloadDto {
     private String token;
     private UserSummaryDto user;
+    private Boolean isNewUser;
     private Boolean isFirstFiftyUser;
     private Integer bonusTokens;
 }

@@ -6,10 +6,12 @@ import com.tokenlearn.server.dao.LessonDao;
 import com.tokenlearn.server.dao.RatingDao;
 import com.tokenlearn.server.dao.TokenTransactionDao;
 import com.tokenlearn.server.dao.UserDao;
+import com.tokenlearn.server.domain.CourseEntity;
 import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.TokenTransactionEntity;
 import com.tokenlearn.server.domain.UserEntity;
 import com.tokenlearn.server.dto.AdminUpdateUserRequest;
+import com.tokenlearn.server.dto.SimpleCourseDto;
 import com.tokenlearn.server.dto.UpdateUserTokensRequest;
 import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.util.CourseLabelUtil;
@@ -68,6 +70,8 @@ public class AdminService {
 
     public List<Map<String, Object>> users(int limit, int offset, String role) {
         return userDao.listUsers(limit, offset).stream().filter(u -> matchRole(u.getUserId(), role)).map(u -> {
+            List<SimpleCourseDto> coursesAsTeacher = toSimpleCourses(courseDao.findTeacherCourses(u.getUserId()));
+            List<SimpleCourseDto> coursesAsStudent = toSimpleCourses(courseDao.findStudentCourses(u.getUserId()));
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", u.getUserId());
             out.put("email", u.getEmail());
@@ -84,6 +88,8 @@ public class AdminService {
             out.put("locked", u.getLockedBalance());
             out.put("tokenBalance", u.getAvailableBalance().add(u.getLockedBalance()));
             out.put("tutorRating", ratingDao.averageForUser(u.getUserId()));
+            out.put("coursesAsTeacher", coursesAsTeacher);
+            out.put("coursesAsStudent", coursesAsStudent);
             return out;
         }).toList();
     }
@@ -137,6 +143,8 @@ public class AdminService {
         out.put("locked", updated.getLockedBalance());
         out.put("tokenBalance", updated.getAvailableBalance().add(updated.getLockedBalance()));
         out.put("tutorRating", ratingDao.averageForUser(updated.getUserId()));
+        out.put("coursesAsTeacher", toSimpleCourses(courseDao.findTeacherCourses(updated.getUserId())));
+        out.put("coursesAsStudent", toSimpleCourses(courseDao.findStudentCourses(updated.getUserId())));
         return out;
     }
 
@@ -195,16 +203,16 @@ public class AdminService {
     public Map<String, Object> adjustTokens(Integer userId, UpdateUserTokensRequest request) {
         UserEntity user = userDao.findById(userId).orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
         BigDecimal amount = request.getAmount();
-        if (amount.compareTo(BigDecimal.ZERO) == 0) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_AMOUNT", "Amount cannot be zero");
-        }
         if (amount.compareTo(BigDecimal.ZERO) > 0) {
             userDao.addAvailable(userId, amount);
-        } else {
+        } else if (amount.compareTo(BigDecimal.ZERO) < 0) {
             boolean ok = userDao.subtractAvailable(userId, amount.abs());
             if (!ok) {
                 throw new AppException(HttpStatus.PAYMENT_REQUIRED, "INSUFFICIENT_BALANCE", "Insufficient available balance for deduction");
             }
+        } else {
+            BigDecimal unchangedTotal = userDao.getBalances(userId).getTotal();
+            return Map.of("userId", userId, "newBalance", unchangedTotal, "adjustment", amount, "noOp", true);
         }
         tokenTransactionDao.create(TokenTransactionEntity.builder()
                 .payerId(userId)
@@ -246,6 +254,18 @@ public class AdminService {
         out.put("endTime", l.getEndTime());
         out.put("status", l.getStatus().toLowerCase());
         return out;
+    }
+
+    private List<SimpleCourseDto> toSimpleCourses(List<CourseEntity> courses) {
+        return courses.stream()
+                .map(course -> SimpleCourseDto.builder()
+                        .id(course.getCourseId())
+                        .courseNumber(course.getCourseNumber())
+                        .nameHe(course.getNameHe())
+                        .nameEn(course.getNameEn())
+                        .name(CourseLabelUtil.buildLabel(course))
+                        .build())
+                .toList();
     }
 
     private String nullableTrim(String value) {

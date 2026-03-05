@@ -7,11 +7,7 @@ import lombok.Data;
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
 @Data
-public class RejectLessonRequestInputDto {
-    @Size(max = 500)
-    @Pattern(regexp = NO_HTML_TAGS, message = "Rejection message must not contain HTML tags")
-    private String rejectionMessage;
-
+public class CancelLessonRequest {
     @Size(max = 500)
     @Pattern(regexp = NO_HTML_TAGS, message = "Reason must not contain HTML tags")
     private String reason;

@@ -100,6 +100,7 @@ public class AuthService {
                         .phone(entity.getPhone())
                         .isAdmin(false)
                         .build())
+                .isNewUser(true)
                 .isFirstFiftyUser(isFirstFifty)
                 .bonusTokens(bonus)
                 .build();
@@ -114,6 +115,7 @@ public class AuthService {
         return AuthPayloadDto.builder()
                 .token(jwtProvider.generateToken(user.getUserId(), user.getEmail()))
                 .user(toSummary(user))
+                .isNewUser(false)
                 .build();
     }
 
@@ -147,32 +149,37 @@ public class AuthService {
     @Transactional
     public AuthPayloadDto googleLogin(GoogleAuthRequest request) {
         GoogleTokenVerifier.GoogleUserClaims claims = googleTokenVerifier.verify(request.getGoogleToken());
-        UserEntity user = userDao.findByEmail(claims.email()).map(existing -> {
+        boolean isNewUser = false;
+        boolean isFirstFifty = false;
+        int bonus = 0;
+        UserEntity user = userDao.findByEmail(claims.email()).orElse(null);
+        if (user != null) {
             boolean changed = false;
-            if (claims.givenName() != null && !claims.givenName().equals(existing.getFirstName())) {
-                existing.setFirstName(claims.givenName());
+            if (claims.givenName() != null && !claims.givenName().equals(user.getFirstName())) {
+                user.setFirstName(claims.givenName());
                 changed = true;
             }
-            if (claims.familyName() != null && !claims.familyName().equals(existing.getLastName())) {
-                existing.setLastName(claims.familyName());
+            if (claims.familyName() != null && !claims.familyName().equals(user.getLastName())) {
+                user.setLastName(claims.familyName());
                 changed = true;
             }
-            if (claims.pictureUrl() != null && !claims.pictureUrl().equals(existing.getPhotoUrl())) {
-                existing.setPhotoUrl(claims.pictureUrl());
+            if (claims.pictureUrl() != null && !claims.pictureUrl().equals(user.getPhotoUrl())) {
+                user.setPhotoUrl(claims.pictureUrl());
                 changed = true;
             }
             if (changed) {
                 userDao.updateProfile(
-                        existing.getUserId(),
-                        existing.getFirstName(),
-                        existing.getLastName(),
-                        existing.getPhone(),
-                        existing.getPhotoUrl(),
-                        existing.getAboutMeAsTeacher(),
-                        existing.getAboutMeAsStudent());
+                        user.getUserId(),
+                        user.getFirstName(),
+                        user.getLastName(),
+                        user.getPhone(),
+                        user.getPhotoUrl(),
+                        user.getAboutMeAsTeacher(),
+                        user.getAboutMeAsStudent());
             }
-            return existing;
-        }).orElseGet(() -> {
+        } else {
+            int beforeCount = userDao.countUsers();
+            isFirstFifty = beforeCount < welcomeUserLimit;
             UserEntity created = UserEntity.builder()
                     .email(claims.email())
                     .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
@@ -188,12 +195,30 @@ public class AuthService {
                     .build();
             Integer id = userDao.create(created);
             created.setUserId(id);
-            return created;
-        });
+
+            if (isFirstFifty) {
+                bonus = welcomeBonusAmount;
+                userDao.addAvailable(id, BigDecimal.valueOf(welcomeBonusAmount));
+                tokenTransactionDao.create(TokenTransactionEntity.builder()
+                        .payerId(id)
+                        .receiverId(id)
+                        .amount(BigDecimal.valueOf(welcomeBonusAmount))
+                        .txType("BONUS")
+                        .status("SUCCESS")
+                        .description("Welcome bonus - First 50 users")
+                        .build());
+            }
+
+            user = created;
+            isNewUser = true;
+        }
 
         return AuthPayloadDto.builder()
                 .token(jwtProvider.generateToken(user.getUserId(), user.getEmail()))
                 .user(toSummary(user))
+                .isNewUser(isNewUser)
+                .isFirstFiftyUser(isFirstFifty)
+                .bonusTokens(bonus)
                 .build();
     }
 

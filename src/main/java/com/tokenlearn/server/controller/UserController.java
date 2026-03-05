@@ -3,6 +3,7 @@ package com.tokenlearn.server.controller;
 import com.tokenlearn.server.dto.*;
 import com.tokenlearn.server.service.UserService;
 import com.tokenlearn.server.util.AuthUtil;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +31,7 @@ public class UserController {
     @PostMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(
             Authentication authentication,
-            @RequestBody UpdateUserProfileRequest request) {
+            @Valid @RequestBody UpdateUserProfileRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(userService.updateProfile(userId, request));
     }

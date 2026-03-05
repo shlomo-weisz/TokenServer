@@ -1,9 +1,11 @@
 package com.tokenlearn.server.controller;
 
 import com.tokenlearn.server.dto.ApiResponse;
+import com.tokenlearn.server.dto.CancelLessonRequest;
 import com.tokenlearn.server.dto.RateLessonRequest;
 import com.tokenlearn.server.service.LessonService;
 import com.tokenlearn.server.util.AuthUtil;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -51,9 +53,9 @@ public class LessonController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> cancel(
             Authentication authentication,
             @PathVariable Integer lessonId,
-            @RequestBody(required = false) Map<String, String> request) {
+            @Valid @RequestBody(required = false) CancelLessonRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
-        String reason = request == null ? null : request.get("reason");
+        String reason = request == null ? null : request.getReason();
         return ok(lessonService.cancelLesson(lessonId, userId, reason));
     }
 
@@ -70,7 +72,7 @@ public class LessonController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> rate(
             Authentication authentication,
             @PathVariable Integer lessonId,
-            @RequestBody RateLessonRequest request) {
+            @Valid @RequestBody RateLessonRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(lessonService.rateLesson(lessonId, userId, request));
     }
