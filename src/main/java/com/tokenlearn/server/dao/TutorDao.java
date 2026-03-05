@@ -49,7 +49,13 @@ public class TutorDao {
                 INNER JOIN courses c ON c.course_id = uct.course_id
                 LEFT JOIN ratings r ON r.to_user_id = u.user_id
                 WHERE u.is_blocked_tutor = 0
-                  AND (:courseName IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :courseName, '%')))
+                  AND (
+                      :courseName IS NULL
+                      OR LOWER(c.name) LIKE LOWER(CONCAT('%', :courseName, '%'))
+                      OR LOWER(c.name_he) LIKE LOWER(CONCAT('%', :courseName, '%'))
+                      OR LOWER(c.name_en) LIKE LOWER(CONCAT('%', :courseName, '%'))
+                      OR c.course_number LIKE CONCAT('%', :courseName, '%')
+                  )
                 GROUP BY u.user_id, u.first_name, u.last_name, u.photo_url
                 HAVING COALESCE(AVG(r.score), 0) >= :minRating
                 ORDER BY rating DESC, name ASC

@@ -41,9 +41,13 @@ services:
       SPRING_ARTEMIS_PASSWORD: "admin"
       JWT_SECRET: "VG9rZW5MZWFyblNlcnZlclNlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvbkFuZFZlcmlmaWNhdGlvbg=="
       JWT_EXPIRATION: "86400000"
+      GOOGLE_CLIENT_ID: "680252947224-1mhcnhnsb9o8akj34ac41c1svon4qrc8.apps.googleusercontent.com"
       SPRING_FLYWAY_ENABLED: "true"
+      APP_COURSE_CATALOG_PATH: "/app/openu_all_courses.json"
     ports:
       - "8080:8080"
+    volumes:
+      - ../openu_all_courses.json:/app/openu_all_courses.json:ro
     restart: on-failure
 
 volumes:

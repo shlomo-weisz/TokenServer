@@ -14,6 +14,7 @@ import com.tokenlearn.server.dto.CreateLessonRequestInputDto;
 import com.tokenlearn.server.dto.RejectLessonRequestInputDto;
 import com.tokenlearn.server.dto.RequestedSlotDto;
 import com.tokenlearn.server.exception.AppException;
+import com.tokenlearn.server.util.CourseLabelUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -196,7 +197,7 @@ public class LessonRequestService {
             UserEntity tutor = userDao.findById(req.getTutorId()).orElse(null);
             String tutorName = tutor == null ? "" : tutor.getFirstName() + " " + tutor.getLastName();
             BigDecimal tutorRating = tutorDao.ratingForTutor(req.getTutorId());
-            String courseName = courseDao.findById(req.getCourseId()).map(c -> c.getName()).orElse("");
+            String courseName = courseDao.findById(req.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", req.getRequestId());
             out.put("tutorId", req.getTutorId());
@@ -216,7 +217,7 @@ public class LessonRequestService {
         return lessonRequestDao.findByTutor(tutorId, normalizeStatus(status)).stream().map(req -> {
             UserEntity student = userDao.findById(req.getStudentId()).orElse(null);
             String studentName = student == null ? "" : student.getFirstName() + " " + student.getLastName();
-            String courseName = courseDao.findById(req.getCourseId()).map(c -> c.getName()).orElse("");
+            String courseName = courseDao.findById(req.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", req.getRequestId());
             out.put("studentId", req.getStudentId());
@@ -238,12 +239,16 @@ public class LessonRequestService {
 
     private Integer resolveCourseId(CreateLessonRequestInputDto request) {
         if (request.getCourseId() != null) {
+            courseDao.findById(request.getCourseId())
+                    .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "INVALID_COURSE", "Unknown courseId"));
             return request.getCourseId();
         }
         if (request.getCourse() == null || request.getCourse().isBlank()) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "courseId or course is required");
         }
-        return courseDao.createIfMissing(request.getCourse(), null);
+        return courseDao.findByIdentifier(request.getCourse())
+                .map(c -> c.getCourseId())
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "INVALID_COURSE", "Unknown course"));
     }
 
     private Slot parseSlot(RequestedSlotDto slot) {

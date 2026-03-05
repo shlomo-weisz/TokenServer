@@ -55,15 +55,18 @@ public class AdminDao {
 
     public List<CourseEntity> mostPopularCourses(int limit) {
         String sql = """
-                SELECT c.course_id, c.name, c.category, c.is_active, COUNT(*) AS lesson_count
+                SELECT c.course_id, c.course_number, c.name_he, c.name_en, c.name, c.category, c.is_active, COUNT(*) AS lesson_count
                 FROM lessons l
                 INNER JOIN courses c ON c.course_id = l.course_id
-                GROUP BY c.course_id, c.name, c.category, c.is_active
+                GROUP BY c.course_id, c.course_number, c.name_he, c.name_en, c.name, c.category, c.is_active
                 ORDER BY lesson_count DESC
                 OFFSET 0 ROWS FETCH NEXT :limit ROWS ONLY
                 """;
         return jdbc.query(sql, new MapSqlParameterSource("limit", limit), (rs, rowNum) -> CourseEntity.builder()
                 .courseId(rs.getInt("course_id"))
+                .courseNumber(rs.getString("course_number"))
+                .nameHe(rs.getString("name_he"))
+                .nameEn(rs.getString("name_en"))
                 .name(rs.getString("name"))
                 .category(rs.getString("category"))
                 .isActive(rs.getBoolean("is_active"))

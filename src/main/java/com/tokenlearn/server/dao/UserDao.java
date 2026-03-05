@@ -96,6 +96,14 @@ public class UserDao {
         return count != null && count > 0;
     }
 
+    public boolean existsByEmailExcludingUser(String email, Integer userId) {
+        String sql = "SELECT COUNT(*) FROM users WHERE email = :email AND user_id <> :userId";
+        Integer count = jdbc.queryForObject(sql, new MapSqlParameterSource()
+                .addValue("email", email)
+                .addValue("userId", userId), Integer.class);
+        return count != null && count > 0;
+    }
+
     public int countUsers() {
         String sql = "SELECT COUNT(*) FROM users";
         Integer count = jdbc.queryForObject(sql, new MapSqlParameterSource(), Integer.class);
@@ -133,6 +141,47 @@ public class UserDao {
     public void updatePhoto(Integer userId, String photoUrl) {
         String sql = "UPDATE users SET photo_url=:photoUrl, updated_at=GETUTCDATE() WHERE user_id=:userId";
         jdbc.update(sql, new MapSqlParameterSource().addValue("userId", userId).addValue("photoUrl", photoUrl));
+    }
+
+    public void updateByAdmin(
+            Integer userId,
+            String email,
+            String firstName,
+            String lastName,
+            String phone,
+            String photoUrl,
+            String aboutTeacher,
+            String aboutStudent,
+            boolean isAdmin,
+            boolean isBlockedTutor,
+            boolean isActive) {
+        String sql = """
+                UPDATE users
+                SET email = :email,
+                    first_name = :firstName,
+                    last_name = :lastName,
+                    phone = :phone,
+                    photo_url = :photoUrl,
+                    about_me_as_teacher = :aboutTeacher,
+                    about_me_as_student = :aboutStudent,
+                    is_admin = :isAdmin,
+                    is_blocked_tutor = :isBlockedTutor,
+                    is_active = :isActive,
+                    updated_at = GETUTCDATE()
+                WHERE user_id = :userId
+                """;
+        jdbc.update(sql, new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("email", email)
+                .addValue("firstName", firstName)
+                .addValue("lastName", lastName)
+                .addValue("phone", phone)
+                .addValue("photoUrl", photoUrl)
+                .addValue("aboutTeacher", aboutTeacher)
+                .addValue("aboutStudent", aboutStudent)
+                .addValue("isAdmin", isAdmin)
+                .addValue("isBlockedTutor", isBlockedTutor)
+                .addValue("isActive", isActive));
     }
 
     public boolean reserveTokens(Integer userId, BigDecimal amount) {
@@ -261,5 +310,27 @@ public class UserDao {
                 OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
                 """;
         return jdbc.query(sql, new MapSqlParameterSource().addValue("offset", offset).addValue("limit", limit), mapper);
+    }
+
+    public int hardDeleteUser(Integer userId, String email) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("email", email);
+
+        String userRequestIdsSql = "SELECT request_id FROM lesson_requests WHERE student_id = :userId OR tutor_id = :userId";
+        String userLessonIdsSql = "SELECT lesson_id FROM lessons WHERE student_id = :userId OR tutor_id = :userId";
+
+        jdbc.update(
+                "DELETE FROM token_transactions WHERE payer_id = :userId OR receiver_id = :userId OR request_id IN (" + userRequestIdsSql
+                        + ") OR lesson_id IN (" + userLessonIdsSql + ")",
+                params);
+        jdbc.update(
+                "DELETE FROM ratings WHERE from_user_id = :userId OR to_user_id = :userId OR lesson_id IN (" + userLessonIdsSql + ")",
+                params);
+        jdbc.update("DELETE FROM lessons WHERE lesson_id IN (" + userLessonIdsSql + ")", params);
+        jdbc.update("DELETE FROM lesson_requests WHERE request_id IN (" + userRequestIdsSql + ")", params);
+        jdbc.update("DELETE FROM admin_contacts WHERE user_id = :userId", params);
+        jdbc.update("DELETE FROM password_reset_tokens WHERE email = :email", params);
+        return jdbc.update("DELETE FROM users WHERE user_id = :userId", params);
     }
 }

@@ -9,8 +9,10 @@ import com.tokenlearn.server.dao.UserDao;
 import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.TokenTransactionEntity;
 import com.tokenlearn.server.domain.UserEntity;
+import com.tokenlearn.server.dto.AdminUpdateUserRequest;
 import com.tokenlearn.server.dto.UpdateUserTokensRequest;
 import com.tokenlearn.server.exception.AppException;
+import com.tokenlearn.server.util.CourseLabelUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,11 +75,90 @@ public class AdminService {
             out.put("lastName", u.getLastName());
             out.put("phone", u.getPhone() == null ? "" : u.getPhone());
             out.put("isAdmin", u.getIsAdmin());
+            out.put("isActive", u.getIsActive());
             out.put("blockedTutor", u.getIsBlockedTutor());
+            out.put("photoUrl", u.getPhotoUrl());
+            out.put("aboutMeAsTeacher", u.getAboutMeAsTeacher());
+            out.put("aboutMeAsStudent", u.getAboutMeAsStudent());
             out.put("available", u.getAvailableBalance());
             out.put("locked", u.getLockedBalance());
+            out.put("tokenBalance", u.getAvailableBalance().add(u.getLockedBalance()));
+            out.put("tutorRating", ratingDao.averageForUser(u.getUserId()));
             return out;
         }).toList();
+    }
+
+    @Transactional
+    public Map<String, Object> updateUser(Integer adminId, Integer userId, AdminUpdateUserRequest request) {
+        requireAdmin(adminId);
+        UserEntity existing = userDao.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
+
+        if (Boolean.TRUE.equals(existing.getIsAdmin())
+                && adminId.equals(userId)
+                && Boolean.FALSE.equals(request.getIsAdmin())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_OPERATION", "Cannot remove your own admin role");
+        }
+
+        String email = request.getEmail().trim();
+        if (userDao.existsByEmailExcludingUser(email, userId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "EMAIL_EXISTS", "Email already exists");
+        }
+
+        userDao.updateByAdmin(
+                userId,
+                email,
+                request.getFirstName().trim(),
+                request.getLastName().trim(),
+                nullableTrim(request.getPhone()),
+                nullableTrim(request.getPhotoUrl()),
+                nullableTrim(request.getAboutMeAsTeacher()),
+                nullableTrim(request.getAboutMeAsStudent()),
+                Boolean.TRUE.equals(request.getIsAdmin()),
+                Boolean.TRUE.equals(request.getIsBlockedTutor()),
+                Boolean.TRUE.equals(request.getIsActive()));
+
+        UserEntity updated = userDao.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", updated.getUserId());
+        out.put("email", updated.getEmail());
+        out.put("firstName", updated.getFirstName());
+        out.put("lastName", updated.getLastName());
+        out.put("phone", updated.getPhone() == null ? "" : updated.getPhone());
+        out.put("isAdmin", updated.getIsAdmin());
+        out.put("isActive", updated.getIsActive());
+        out.put("blockedTutor", updated.getIsBlockedTutor());
+        out.put("photoUrl", updated.getPhotoUrl());
+        out.put("aboutMeAsTeacher", updated.getAboutMeAsTeacher());
+        out.put("aboutMeAsStudent", updated.getAboutMeAsStudent());
+        out.put("available", updated.getAvailableBalance());
+        out.put("locked", updated.getLockedBalance());
+        out.put("tokenBalance", updated.getAvailableBalance().add(updated.getLockedBalance()));
+        out.put("tutorRating", ratingDao.averageForUser(updated.getUserId()));
+        return out;
+    }
+
+    @Transactional
+    public Map<String, Object> deleteUser(Integer adminId, Integer userId) {
+        requireAdmin(adminId);
+        if (adminId.equals(userId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_OPERATION", "Cannot delete your own account");
+        }
+
+        UserEntity user = userDao.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
+
+        int deleted = userDao.hardDeleteUser(userId, user.getEmail());
+        if (deleted != 1) {
+            throw new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found");
+        }
+
+        return Map.of(
+                "deleted", true,
+                "userId", userId,
+                "email", user.getEmail());
     }
 
     public Map<String, Object> statistics() {
@@ -85,7 +166,7 @@ public class AdminService {
                 "lessonsThisMonth", adminDao.lessonsThisMonth(),
                 "lessonsThisWeek", adminDao.lessonsThisWeek(),
                 "averageRating", ratingDao.globalAverage(),
-                "mostPopularCourses", adminDao.mostPopularCourses(5).stream().map(c -> c.getName()).toList());
+                "mostPopularCourses", adminDao.mostPopularCourses(5).stream().map(CourseLabelUtil::buildLabel).toList());
     }
 
     @Transactional
@@ -153,7 +234,7 @@ public class AdminService {
     private Map<String, Object> toAdminLesson(LessonEntity l) {
         UserEntity student = userDao.findById(l.getStudentId()).orElse(null);
         UserEntity tutor = userDao.findById(l.getTutorId()).orElse(null);
-        String course = courseDao.findById(l.getCourseId()).map(c -> c.getName()).orElse("");
+        String course = courseDao.findById(l.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", l.getLessonId());
         out.put("studentId", l.getStudentId());
@@ -165,5 +246,13 @@ public class AdminService {
         out.put("endTime", l.getEndTime());
         out.put("status", l.getStatus().toLowerCase());
         return out;
+    }
+
+    private String nullableTrim(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

@@ -1,0 +1,15 @@
+ALTER TABLE users
+    ALTER COLUMN first_name NVARCHAR(100) NOT NULL;
+GO
+
+ALTER TABLE users
+    ALTER COLUMN last_name NVARCHAR(100) NOT NULL;
+GO
+
+ALTER TABLE availability
+    ALTER COLUMN day NVARCHAR(20) NOT NULL;
+GO
+
+ALTER TABLE lesson_requests
+    ALTER COLUMN requested_day NVARCHAR(20) NULL;
+GO

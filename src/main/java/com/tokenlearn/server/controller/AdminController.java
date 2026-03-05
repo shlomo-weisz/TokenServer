@@ -1,6 +1,7 @@
 package com.tokenlearn.server.controller;
 
 import com.tokenlearn.server.dto.ApiResponse;
+import com.tokenlearn.server.dto.AdminUpdateUserRequest;
 import com.tokenlearn.server.dto.ContactAdminRequest;
 import com.tokenlearn.server.dto.UpdateUserTokensRequest;
 import com.tokenlearn.server.service.AdminService;
@@ -94,5 +95,22 @@ public class AdminController {
         Integer adminId = AuthUtil.requireUserId(authentication);
         adminService.requireAdmin(adminId);
         return ok(adminService.adjustTokens(userId, request));
+    }
+
+    @PutMapping("/users/{userId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(
+            Authentication authentication,
+            @PathVariable Integer userId,
+            @Valid @RequestBody AdminUpdateUserRequest request) {
+        Integer adminId = AuthUtil.requireUserId(authentication);
+        return ok(adminService.updateUser(adminId, userId, request));
+    }
+
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteUser(
+            Authentication authentication,
+            @PathVariable Integer userId) {
+        Integer adminId = AuthUtil.requireUserId(authentication);
+        return ok(adminService.deleteUser(adminId, userId));
     }
 }

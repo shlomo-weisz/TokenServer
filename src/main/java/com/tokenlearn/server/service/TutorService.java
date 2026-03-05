@@ -8,6 +8,7 @@ import com.tokenlearn.server.domain.UserEntity;
 import com.tokenlearn.server.dto.AvailabilityDto;
 import com.tokenlearn.server.dto.SimpleCourseDto;
 import com.tokenlearn.server.exception.AppException;
+import com.tokenlearn.server.util.CourseLabelUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +42,15 @@ public class TutorService {
     public Map<String, Object> profile(Integer tutorId) {
         UserEntity tutor = userDao.findById(tutorId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Tutor not found"));
+        List<SimpleCourseDto> courses = courseDao.findTeacherCourses(tutorId).stream()
+                .map(c -> SimpleCourseDto.builder()
+                        .id(c.getCourseId())
+                        .courseNumber(c.getCourseNumber())
+                        .nameHe(c.getNameHe())
+                        .nameEn(c.getNameEn())
+                        .name(CourseLabelUtil.buildLabel(c))
+                        .build())
+                .toList();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", tutor.getUserId());
         out.put("name", tutor.getFirstName() + " " + tutor.getLastName());
@@ -48,7 +58,9 @@ public class TutorService {
         out.put("photoUrl", tutor.getPhotoUrl() == null ? "" : tutor.getPhotoUrl());
         out.put("aboutMeAsTeacher", tutor.getAboutMeAsTeacher() == null ? "" : tutor.getAboutMeAsTeacher());
         out.put("rating", tutorDao.ratingForTutor(tutorId));
-        out.put("courses", courseDao.findTeacherCourses(tutorId).stream().map(c -> c.getName()).toList());
+        out.put("courseOptions", courses);
+        out.put("coursesAsTeacher", courses);
+        out.put("courses", courses.stream().map(SimpleCourseDto::getName).toList());
         out.put("availabilityAsTeacher", availability(tutorId));
         return out;
     }
@@ -69,12 +81,20 @@ public class TutorService {
         return rows.stream().map(row -> {
             Integer tutorId = (Integer) row.get("id");
             List<SimpleCourseDto> courses = courseDao.findTeacherCourses(tutorId).stream()
-                    .map(c -> SimpleCourseDto.builder().id(c.getCourseId()).name(c.getName()).build())
+                    .map(c -> SimpleCourseDto.builder()
+                            .id(c.getCourseId())
+                            .courseNumber(c.getCourseNumber())
+                            .nameHe(c.getNameHe())
+                            .nameEn(c.getNameEn())
+                            .name(CourseLabelUtil.buildLabel(c))
+                            .build())
                     .toList();
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", tutorId);
             out.put("name", row.get("name"));
             out.put("rating", row.get("rating"));
+            out.put("courseOptions", courses);
+            out.put("coursesAsTeacher", courses);
             out.put("courses", courses.stream().map(SimpleCourseDto::getName).toList());
             out.put("photoUrl", row.get("photoUrl") == null ? "" : row.get("photoUrl"));
             out.put("availabilityAsTeacher", availability(tutorId));

@@ -10,6 +10,7 @@ import com.tokenlearn.server.domain.RatingEntity;
 import com.tokenlearn.server.domain.UserEntity;
 import com.tokenlearn.server.dto.*;
 import com.tokenlearn.server.exception.AppException;
+import com.tokenlearn.server.util.CourseLabelUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -131,7 +133,13 @@ public class UserService {
 
     private List<SimpleCourseDto> toSimpleCourses(List<CourseEntity> courses) {
         return courses.stream()
-                .map(c -> SimpleCourseDto.builder().id(c.getCourseId()).name(c.getName()).build())
+                .map(c -> SimpleCourseDto.builder()
+                        .id(c.getCourseId())
+                        .courseNumber(c.getCourseNumber())
+                        .nameHe(c.getNameHe())
+                        .nameEn(c.getNameEn())
+                        .name(CourseLabelUtil.buildLabel(c))
+                        .build())
                 .collect(Collectors.toList());
     }
 
@@ -139,12 +147,31 @@ public class UserService {
         List<Integer> ids = new ArrayList<>();
         for (CourseSelectionDto c : input) {
             if (c.getId() != null) {
+                courseDao.findById(c.getId())
+                        .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "INVALID_COURSE", "Unknown course id: " + c.getId()));
                 ids.add(c.getId());
-            } else if (c.getName() != null && !c.getName().isBlank()) {
-                ids.add(courseDao.createIfMissing(c.getName(), null));
+            } else {
+                String[] candidates = new String[] { c.getCourseNumber(), c.getNameHe(), c.getNameEn(), c.getName() };
+                Integer resolvedId = null;
+                String attemptedValue = null;
+                for (String candidate : candidates) {
+                    if (candidate == null || candidate.isBlank()) {
+                        continue;
+                    }
+                    attemptedValue = candidate;
+                    resolvedId = courseDao.findByIdentifier(candidate).map(CourseEntity::getCourseId).orElse(null);
+                    if (resolvedId != null) {
+                        break;
+                    }
+                }
+                if (resolvedId != null) {
+                    ids.add(resolvedId);
+                } else if (attemptedValue != null) {
+                    throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_COURSE", "Unknown course: " + attemptedValue);
+                }
             }
         }
-        return ids;
+        return new ArrayList<>(new LinkedHashSet<>(ids));
     }
 
     private List<AvailabilityEntity> toAvailabilityEntities(Integer userId, String role, List<AvailabilityInputDto> input) {

@@ -24,8 +24,9 @@ public class CourseController {
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> all(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String category) {
-        return ok(Map.of("courses", courseService.getCourses(search, category)));
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer limit) {
+        return ok(Map.of("courses", courseService.getCourses(search, category, limit)));
     }
 
     @GetMapping("/categories")

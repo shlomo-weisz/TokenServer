@@ -16,6 +16,7 @@ import com.tokenlearn.server.domain.TokenTransactionEntity;
 import com.tokenlearn.server.domain.UserEntity;
 import com.tokenlearn.server.dto.RateLessonRequest;
 import com.tokenlearn.server.exception.AppException;
+import com.tokenlearn.server.util.CourseLabelUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -149,7 +150,7 @@ public class LessonService {
             boolean isTeacher = lesson.getTutorId().equals(userId);
             Integer withUserId = isTeacher ? lesson.getStudentId() : lesson.getTutorId();
             UserEntity withUser = userDao.findById(withUserId).orElse(null);
-            String courseName = courseDao.findById(lesson.getCourseId()).map(c -> c.getName()).orElse("");
+            String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", lesson.getLessonId());
             out.put("role", isTeacher ? "teacher" : "student");
@@ -171,7 +172,7 @@ public class LessonService {
         LessonRequestEntity request = requireRequest(lesson.getRequestId());
         UserEntity student = userDao.findById(lesson.getStudentId()).orElse(null);
         UserEntity tutor = userDao.findById(lesson.getTutorId()).orElse(null);
-        String courseName = courseDao.findById(lesson.getCourseId()).map(c -> c.getName()).orElse("");
+        String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", lesson.getLessonId());
         result.put("requestId", lesson.getRequestId());
@@ -193,7 +194,7 @@ public class LessonService {
             boolean asTeacher = lesson.getTutorId().equals(userId);
             Integer withUserId = asTeacher ? lesson.getStudentId() : lesson.getTutorId();
             UserEntity withUser = userDao.findById(withUserId).orElse(null);
-            String courseName = courseDao.findById(lesson.getCourseId()).map(c -> c.getName()).orElse("");
+            String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", lesson.getLessonId());
             out.put("role", asTeacher ? "teacher" : "student");

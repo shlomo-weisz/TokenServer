@@ -11,6 +11,9 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CourseEntity {
     private Integer courseId;
+    private String courseNumber;
+    private String nameHe;
+    private String nameEn;
     private String name;
     private String category;
     private Boolean isActive;
