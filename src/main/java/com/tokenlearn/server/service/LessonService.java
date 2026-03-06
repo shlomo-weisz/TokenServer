@@ -8,6 +8,7 @@ import com.tokenlearn.server.dao.OutboxDao;
 import com.tokenlearn.server.dao.RatingDao;
 import com.tokenlearn.server.dao.TokenTransactionDao;
 import com.tokenlearn.server.dao.UserDao;
+import com.tokenlearn.server.domain.CourseEntity;
 import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.LessonRequestEntity;
 import com.tokenlearn.server.domain.OutboxEventEntity;
@@ -156,13 +157,13 @@ public class LessonService {
             boolean isTeacher = lesson.getTutorId().equals(userId);
             Integer withUserId = isTeacher ? lesson.getStudentId() : lesson.getTutorId();
             UserEntity withUser = userDao.findById(withUserId).orElse(null);
-            String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+            CourseEntity course = findCourse(lesson.getCourseId());
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", lesson.getLessonId());
             out.put("role", isTeacher ? "teacher" : "student");
             out.put("withUserId", withUserId);
             out.put("withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName());
-            out.put("topic", courseName);
+            putCourseFields(out, course, "topic");
             out.put("dateTime", lesson.getStartTime());
             out.put("tokenCost", lesson.getTokenCost());
             out.put("status", lesson.getStatus().toLowerCase());
@@ -178,7 +179,7 @@ public class LessonService {
         LessonRequestEntity request = requireRequest(lesson.getRequestId());
         UserEntity student = userDao.findById(lesson.getStudentId()).orElse(null);
         UserEntity tutor = userDao.findById(lesson.getTutorId()).orElse(null);
-        String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+        CourseEntity course = findCourse(lesson.getCourseId());
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", lesson.getLessonId());
         result.put("requestId", lesson.getRequestId());
@@ -187,7 +188,7 @@ public class LessonService {
         result.put("studentName", student == null ? "" : student.getFirstName() + " " + student.getLastName());
         result.put("tutorId", lesson.getTutorId());
         result.put("tutorName", tutor == null ? "" : tutor.getFirstName() + " " + tutor.getLastName());
-        result.put("course", courseName);
+        putCourseFields(result, course, "course");
         result.put("dateTime", lesson.getStartTime());
         result.put("startTime", lesson.getStartTime());
         result.put("endTime", lesson.getEndTime());
@@ -202,13 +203,13 @@ public class LessonService {
             boolean asTeacher = lesson.getTutorId().equals(userId);
             Integer withUserId = asTeacher ? lesson.getStudentId() : lesson.getTutorId();
             UserEntity withUser = userDao.findById(withUserId).orElse(null);
-            String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+            CourseEntity course = findCourse(lesson.getCourseId());
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", lesson.getLessonId());
             out.put("role", asTeacher ? "teacher" : "student");
             out.put("withUserId", withUserId);
             out.put("withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName());
-            out.put("topic", courseName);
+            putCourseFields(out, course, "topic");
             out.put("dateTime", lesson.getStartTime());
             out.put("tokenCost", lesson.getTokenCost());
             out.put("status", lesson.getStatus().toLowerCase());
@@ -226,14 +227,14 @@ public class LessonService {
                     boolean asTeacher = lesson.getTutorId().equals(userId);
                     Integer withUserId = asTeacher ? lesson.getStudentId() : lesson.getTutorId();
                     UserEntity withUser = userDao.findById(withUserId).orElse(null);
-                    String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+                    CourseEntity course = findCourse(lesson.getCourseId());
                     Map<String, Object> out = new LinkedHashMap<>();
                     out.put("id", lesson.getLessonId());
                     out.put("requestId", lesson.getRequestId());
                     out.put("role", asTeacher ? "teacher" : "student");
                     out.put("withUserId", withUserId);
                     out.put("withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName());
-                    out.put("topic", courseName);
+                    putCourseFields(out, course, "topic");
                     out.put("dateTime", lesson.getStartTime());
                     out.put("startTime", lesson.getStartTime());
                     out.put("endTime", lesson.getEndTime());
@@ -332,5 +333,19 @@ public class LessonService {
 
     private String normalizeStatus(String status) {
         return status == null || status.isBlank() ? null : status.trim().toUpperCase();
+    }
+
+    private CourseEntity findCourse(Integer courseId) {
+        return courseId == null ? null : courseDao.findById(courseId).orElse(null);
+    }
+
+    private void putCourseFields(Map<String, Object> target, CourseEntity course, String legacyKey) {
+        String courseLabel = course == null ? "" : CourseLabelUtil.buildLabel(course);
+        target.put(legacyKey, courseLabel);
+        target.put("courseLabel", courseLabel);
+        target.put("courseId", course == null ? null : course.getCourseId());
+        target.put("courseNumber", course == null ? null : course.getCourseNumber());
+        target.put("courseNameHe", course == null ? null : course.getNameHe());
+        target.put("courseNameEn", course == null ? null : course.getNameEn());
     }
 }

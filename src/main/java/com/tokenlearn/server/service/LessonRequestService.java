@@ -6,6 +6,7 @@ import com.tokenlearn.server.dao.LessonRequestDao;
 import com.tokenlearn.server.dao.TokenTransactionDao;
 import com.tokenlearn.server.dao.TutorDao;
 import com.tokenlearn.server.dao.UserDao;
+import com.tokenlearn.server.domain.CourseEntity;
 import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.LessonRequestEntity;
 import com.tokenlearn.server.domain.TokenTransactionEntity;
@@ -211,13 +212,13 @@ public class LessonRequestService {
             UserEntity tutor = userDao.findById(req.getTutorId()).orElse(null);
             String tutorName = tutor == null ? "" : tutor.getFirstName() + " " + tutor.getLastName();
             BigDecimal tutorRating = tutorDao.ratingForTutor(req.getTutorId());
-            String courseName = courseDao.findById(req.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+            CourseEntity course = findCourse(req.getCourseId());
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", req.getRequestId());
             out.put("tutorId", req.getTutorId());
             out.put("tutorName", tutorName.trim());
             out.put("tutorRating", tutorRating);
-            out.put("course", courseName);
+            putCourseFields(out, course);
             out.put("requestedSlot", slotMap(req));
             out.put("message", req.getMessage() == null ? "" : req.getMessage());
             out.put("status", req.getStatus().toLowerCase());
@@ -231,12 +232,12 @@ public class LessonRequestService {
         return lessonRequestDao.findByTutor(tutorId, normalizeStatus(status)).stream().map(req -> {
             UserEntity student = userDao.findById(req.getStudentId()).orElse(null);
             String studentName = student == null ? "" : student.getFirstName() + " " + student.getLastName();
-            String courseName = courseDao.findById(req.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+            CourseEntity course = findCourse(req.getCourseId());
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("id", req.getRequestId());
             out.put("studentId", req.getStudentId());
             out.put("studentName", studentName.trim());
-            out.put("course", courseName);
+            putCourseFields(out, course);
             out.put("requestedSlot", slotMap(req));
             out.put("message", req.getMessage() == null ? "" : req.getMessage());
             out.put("status", req.getStatus().toLowerCase());
@@ -338,6 +339,20 @@ public class LessonRequestService {
 
     private String normalizeStatus(String status) {
         return status == null || status.isBlank() ? null : status.toUpperCase();
+    }
+
+    private CourseEntity findCourse(Integer courseId) {
+        return courseId == null ? null : courseDao.findById(courseId).orElse(null);
+    }
+
+    private void putCourseFields(Map<String, Object> target, CourseEntity course) {
+        String courseLabel = course == null ? "" : CourseLabelUtil.buildLabel(course);
+        target.put("course", courseLabel);
+        target.put("courseLabel", courseLabel);
+        target.put("courseId", course == null ? null : course.getCourseId());
+        target.put("courseNumber", course == null ? null : course.getCourseNumber());
+        target.put("courseNameHe", course == null ? null : course.getNameHe());
+        target.put("courseNameEn", course == null ? null : course.getNameEn());
     }
 
     private record Slot(String day, LocalTime start, LocalTime end, LocalDateTime specificStart, LocalDateTime specificEnd) {

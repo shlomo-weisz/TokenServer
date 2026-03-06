@@ -170,11 +170,13 @@ public class AdminService {
     }
 
     public Map<String, Object> statistics() {
+        List<CourseEntity> popularCourses = adminDao.mostPopularCourses(5);
         return Map.of(
                 "lessonsThisMonth", adminDao.lessonsThisMonth(),
                 "lessonsThisWeek", adminDao.lessonsThisWeek(),
                 "averageRating", ratingDao.globalAverage(),
-                "mostPopularCourses", adminDao.mostPopularCourses(5).stream().map(CourseLabelUtil::buildLabel).toList());
+                "mostPopularCourses", popularCourses.stream().map(CourseLabelUtil::buildLabel).toList(),
+                "mostPopularCourseOptions", toSimpleCourses(popularCourses));
     }
 
     @Transactional
@@ -242,14 +244,20 @@ public class AdminService {
     private Map<String, Object> toAdminLesson(LessonEntity l) {
         UserEntity student = userDao.findById(l.getStudentId()).orElse(null);
         UserEntity tutor = userDao.findById(l.getTutorId()).orElse(null);
-        String course = courseDao.findById(l.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+        CourseEntity course = l.getCourseId() == null ? null : courseDao.findById(l.getCourseId()).orElse(null);
+        String courseLabel = course == null ? "" : CourseLabelUtil.buildLabel(course);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", l.getLessonId());
         out.put("studentId", l.getStudentId());
         out.put("studentName", student == null ? "" : student.getFirstName() + " " + student.getLastName());
         out.put("tutorId", l.getTutorId());
         out.put("tutorName", tutor == null ? "" : tutor.getFirstName() + " " + tutor.getLastName());
-        out.put("course", course);
+        out.put("course", courseLabel);
+        out.put("courseLabel", courseLabel);
+        out.put("courseId", course == null ? null : course.getCourseId());
+        out.put("courseNumber", course == null ? null : course.getCourseNumber());
+        out.put("courseNameHe", course == null ? null : course.getNameHe());
+        out.put("courseNameEn", course == null ? null : course.getNameEn());
         out.put("startTime", l.getStartTime());
         out.put("endTime", l.getEndTime());
         out.put("status", l.getStatus().toLowerCase());
