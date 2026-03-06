@@ -36,8 +36,8 @@ public class TutorService {
         return enrichTutorRows(tutorDao.findRecommended(userId, limit, minRating));
     }
 
-    public List<Map<String, Object>> search(Integer userId, String course, String name, BigDecimal minRating, int limit) {
-        return enrichTutorRows(tutorDao.searchTutors(userId, course, name, minRating, limit));
+    public List<Map<String, Object>> search(Integer userId, String course, String name, BigDecimal minRating, Boolean taughtMeBefore, int limit) {
+        return enrichTutorRows(tutorDao.searchTutors(userId, course, name, minRating, taughtMeBefore, limit));
     }
 
     public Map<String, Object> profile(Integer tutorId) {
@@ -102,6 +102,7 @@ public class TutorService {
             out.put("courses", courses.stream().map(SimpleCourseDto::getName).toList());
             out.put("photoUrl", row.get("photoUrl") == null ? "" : row.get("photoUrl"));
             out.put("aboutMeAsTeacher", row.get("aboutMeAsTeacher") == null ? "" : row.get("aboutMeAsTeacher"));
+            out.put("taughtMeBefore", asBoolean(row.get("taughtMeBefore")));
             int lessons = asInt(row.get("lessons"));
             out.put("lessons", lessons);
             out.put("totalLessonsAsTutor", lessons);
@@ -122,5 +123,15 @@ public class TutorService {
         } catch (NumberFormatException ex) {
             return 0;
         }
+    }
+
+    private boolean asBoolean(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return value != null && Boolean.parseBoolean(value.toString());
     }
 }

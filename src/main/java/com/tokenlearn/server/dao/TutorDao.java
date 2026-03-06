@@ -23,6 +23,16 @@ public class TutorDao {
                     CONCAT(u.first_name, ' ', u.last_name) AS name,
                     u.photo_url AS photoUrl,
                     u.about_me_as_teacher AS aboutMeAsTeacher,
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM lessons ls
+                            WHERE ls.student_id = :excludeUserId
+                              AND ls.tutor_id = u.user_id
+                              AND ls.status = 'COMPLETED'
+                        ) THEN CAST(1 AS BIT)
+                        ELSE CAST(0 AS BIT)
+                    END AS taughtMeBefore,
                     COALESCE(AVG(r.score), 0) AS rating,
                     COUNT(DISTINCT CASE WHEN l.status = 'COMPLETED' THEN l.lesson_id END) AS lessons
                 FROM users u
@@ -42,13 +52,29 @@ public class TutorDao {
                 .addValue("minRating", minRating));
     }
 
-    public List<Map<String, Object>> searchTutors(Integer excludeUserId, String courseName, String tutorName, BigDecimal minRating, int limit) {
+    public List<Map<String, Object>> searchTutors(
+            Integer excludeUserId,
+            String courseName,
+            String tutorName,
+            BigDecimal minRating,
+            Boolean taughtMeBefore,
+            int limit) {
         String sql = """
                 SELECT
                     u.user_id AS id,
                     CONCAT(u.first_name, ' ', u.last_name) AS name,
                     u.photo_url AS photoUrl,
                     u.about_me_as_teacher AS aboutMeAsTeacher,
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM lessons ls
+                            WHERE ls.student_id = :excludeUserId
+                              AND ls.tutor_id = u.user_id
+                              AND ls.status = 'COMPLETED'
+                        ) THEN CAST(1 AS BIT)
+                        ELSE CAST(0 AS BIT)
+                    END AS taughtMeBefore,
                     COALESCE(AVG(r.score), 0) AS rating,
                     COUNT(DISTINCT CASE WHEN l.status = 'COMPLETED' THEN l.lesson_id END) AS lessons
                 FROM users u
@@ -71,6 +97,17 @@ public class TutorDao {
                       OR LOWER(c.name_en) LIKE LOWER(CONCAT('%', :courseName, '%'))
                       OR c.course_number LIKE CONCAT('%', :courseName, '%')
                   )
+                  AND (
+                      :taughtMeBefore IS NULL
+                      OR :taughtMeBefore = 0
+                      OR EXISTS (
+                          SELECT 1
+                          FROM lessons ls
+                          WHERE ls.student_id = :excludeUserId
+                            AND ls.tutor_id = u.user_id
+                            AND ls.status = 'COMPLETED'
+                      )
+                  )
                 GROUP BY u.user_id, u.first_name, u.last_name, u.photo_url, u.about_me_as_teacher
                 HAVING COALESCE(AVG(r.score), 0) >= :minRating
                 ORDER BY rating DESC, name ASC
@@ -81,6 +118,7 @@ public class TutorDao {
                 .addValue("courseName", courseName)
                 .addValue("tutorName", tutorName)
                 .addValue("minRating", minRating)
+                .addValue("taughtMeBefore", taughtMeBefore)
                 .addValue("limit", limit));
     }
 

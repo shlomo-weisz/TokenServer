@@ -8,9 +8,11 @@ import com.tokenlearn.server.service.LessonService;
 import com.tokenlearn.server.util.AuthUtil;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -67,6 +69,17 @@ public class LessonController {
             @RequestParam(defaultValue = "0") int offset) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(lessonService.history(userId, limit, offset));
+    }
+
+    @GetMapping("/calendar")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> calendar(
+            Authentication authentication,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.calendar(userId, role, status, from, to));
     }
 
     @PostMapping("/{lessonId}/rate")

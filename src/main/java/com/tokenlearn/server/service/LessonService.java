@@ -216,6 +216,39 @@ public class LessonService {
         }).toList();
     }
 
+    public Map<String, Object> calendar(Integer userId, String role, String status, LocalDateTime from, LocalDateTime to) {
+        if (from == null || to == null || !to.isAfter(from)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_RANGE", "Calendar range is invalid");
+        }
+
+        List<Map<String, Object>> lessons = lessonDao.findByUserBetween(userId, normalizeRole(role), normalizeStatus(status), from, to).stream()
+                .map(lesson -> {
+                    boolean asTeacher = lesson.getTutorId().equals(userId);
+                    Integer withUserId = asTeacher ? lesson.getStudentId() : lesson.getTutorId();
+                    UserEntity withUser = userDao.findById(withUserId).orElse(null);
+                    String courseName = courseDao.findById(lesson.getCourseId()).map(CourseLabelUtil::buildLabel).orElse("");
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("id", lesson.getLessonId());
+                    out.put("requestId", lesson.getRequestId());
+                    out.put("role", asTeacher ? "teacher" : "student");
+                    out.put("withUserId", withUserId);
+                    out.put("withUserName", withUser == null ? "" : withUser.getFirstName() + " " + withUser.getLastName());
+                    out.put("topic", courseName);
+                    out.put("dateTime", lesson.getStartTime());
+                    out.put("startTime", lesson.getStartTime());
+                    out.put("endTime", lesson.getEndTime());
+                    out.put("tokenCost", lesson.getTokenCost());
+                    out.put("status", lesson.getStatus().toLowerCase());
+                    return out;
+                })
+                .toList();
+
+        return Map.of(
+                "from", from,
+                "to", to,
+                "lessons", lessons);
+    }
+
     @Transactional
     public Map<String, Object> rateLesson(Integer lessonId, Integer fromUserId, RateLessonRequest request) {
         LessonEntity lesson = requireLesson(lessonId);
@@ -284,5 +317,20 @@ public class LessonService {
 
     private boolean isParticipant(LessonEntity lesson, Integer userId) {
         return lesson.getStudentId().equals(userId) || lesson.getTutorId().equals(userId);
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null || role.isBlank()) {
+            return null;
+        }
+        String normalized = role.trim().toLowerCase();
+        if (!"teacher".equals(normalized) && !"student".equals(normalized)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_ROLE", "Role must be teacher or student");
+        }
+        return normalized;
+    }
+
+    private String normalizeStatus(String status) {
+        return status == null || status.isBlank() ? null : status.trim().toUpperCase();
     }
 }

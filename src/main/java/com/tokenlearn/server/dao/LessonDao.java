@@ -136,4 +136,25 @@ public class LessonDao {
                 .addValue("toTime", to), mapper);
     }
 
+    public List<LessonEntity> findByUserBetween(Integer userId, String role, String status, LocalDateTime from, LocalDateTime to) {
+        String sql = """
+                SELECT * FROM lessons
+                WHERE start_time >= :fromTime
+                  AND start_time < :toTime
+                  AND (:status IS NULL OR UPPER(status) = UPPER(:status))
+                  AND (
+                      (:role='teacher' AND tutor_id=:userId)
+                      OR (:role='student' AND student_id=:userId)
+                      OR (:role IS NULL AND (student_id=:userId OR tutor_id=:userId))
+                  )
+                ORDER BY start_time ASC
+                """;
+        return jdbc.query(sql, new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("role", role)
+                .addValue("status", status)
+                .addValue("fromTime", from)
+                .addValue("toTime", to), mapper);
+    }
+
 }
