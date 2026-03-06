@@ -123,4 +123,17 @@ public class LessonDao {
         return count == null ? 0 : count;
     }
 
+    public List<LessonEntity> findScheduledStartingBetween(LocalDateTime from, LocalDateTime to) {
+        String sql = """
+                SELECT * FROM lessons
+                WHERE status = 'SCHEDULED'
+                  AND start_time >= :fromTime
+                  AND start_time <= :toTime
+                ORDER BY start_time ASC
+                """;
+        return jdbc.query(sql, new MapSqlParameterSource()
+                .addValue("fromTime", from)
+                .addValue("toTime", to), mapper);
+    }
+
 }

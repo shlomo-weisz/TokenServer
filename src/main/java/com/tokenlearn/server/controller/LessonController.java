@@ -2,6 +2,7 @@ package com.tokenlearn.server.controller;
 
 import com.tokenlearn.server.dto.ApiResponse;
 import com.tokenlearn.server.dto.CancelLessonRequest;
+import com.tokenlearn.server.dto.CreateLessonMessageRequest;
 import com.tokenlearn.server.dto.RateLessonRequest;
 import com.tokenlearn.server.service.LessonService;
 import com.tokenlearn.server.util.AuthUtil;
@@ -75,5 +76,14 @@ public class LessonController {
             @Valid @RequestBody RateLessonRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(lessonService.rateLesson(lessonId, userId, request));
+    }
+
+    @PostMapping("/{lessonId}/messages")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendMessage(
+            Authentication authentication,
+            @PathVariable Integer lessonId,
+            @Valid @RequestBody CreateLessonMessageRequest request) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.sendLessonMessage(lessonId, userId, request));
     }
 }

@@ -35,6 +35,24 @@ public class NotificationController {
         return ok(notificationService.unreadForUser(userId, limit));
     }
 
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list(
+            Authentication authentication,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "false") boolean unreadOnly,
+            @RequestParam(required = false) Integer lessonId,
+            @RequestParam(required = false) String eventType) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(notificationService.listForUser(userId, limit, offset, unreadOnly, lessonId, eventType));
+    }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> unreadCount(Authentication authentication) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(notificationService.unreadCount(userId));
+    }
+
     @PostMapping("/read")
     public ResponseEntity<ApiResponse<Map<String, Object>>> markRead(
             Authentication authentication,

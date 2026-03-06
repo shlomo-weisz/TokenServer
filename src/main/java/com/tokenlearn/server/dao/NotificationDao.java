@@ -29,6 +29,8 @@ public class NotificationDao {
             .courseName(rs.getString("course_name"))
             .scheduledAt(rs.getObject("scheduled_at", LocalDateTime.class))
             .rejectionReason(rs.getString("rejection_reason"))
+            .messageBody(rs.getString("message_body"))
+            .senderUserId((Integer) rs.getObject("sender_user_id"))
             .actionPath(rs.getString("action_path"))
             .isRead(rs.getBoolean("is_read"))
             .createdAt(rs.getObject("created_at", LocalDateTime.class))
@@ -39,11 +41,13 @@ public class NotificationDao {
         String sql = """
                 INSERT INTO notifications (
                   user_id, event_type, request_id, lesson_id, counterpart_name,
-                  course_name, scheduled_at, rejection_reason, action_path, is_read
+                  course_name, scheduled_at, rejection_reason, message_body, sender_user_id,
+                  action_path, is_read
                 )
                 VALUES (
                   :userId, :eventType, :requestId, :lessonId, :counterpartName,
-                  :courseName, :scheduledAt, :rejectionReason, :actionPath, :isRead
+                  :courseName, :scheduledAt, :rejectionReason, :messageBody, :senderUserId,
+                  :actionPath, :isRead
                 )
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -55,6 +59,8 @@ public class NotificationDao {
                 .addValue("courseName", notification.getCourseName())
                 .addValue("scheduledAt", notification.getScheduledAt())
                 .addValue("rejectionReason", notification.getRejectionReason())
+                .addValue("messageBody", notification.getMessageBody())
+                .addValue("senderUserId", notification.getSenderUserId())
                 .addValue("actionPath", notification.getActionPath())
                 .addValue("isRead", Boolean.TRUE.equals(notification.getIsRead()));
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -63,18 +69,61 @@ public class NotificationDao {
     }
 
     public List<NotificationEntity> findUnreadByUser(Integer userId, int limit) {
+        return findByUser(userId, limit, 0, true, null, null);
+    }
+
+    public List<NotificationEntity> findByUser(
+            Integer userId,
+            int limit,
+            int offset,
+            boolean unreadOnly,
+            Integer lessonId,
+            String eventType) {
         String sql = """
                 SELECT notification_id, user_id, event_type, request_id, lesson_id, counterpart_name,
-                       course_name, scheduled_at, rejection_reason, action_path, is_read, created_at, read_at
+                       course_name, scheduled_at, rejection_reason, message_body, sender_user_id,
+                       action_path, is_read, created_at, read_at
                 FROM notifications
                 WHERE user_id = :userId
-                  AND is_read = 0
+                  AND (:unreadOnly = 0 OR is_read = 0)
+                  AND (:lessonId IS NULL OR lesson_id = :lessonId)
+                  AND (:eventType IS NULL OR event_type = :eventType)
                 ORDER BY created_at DESC
-                OFFSET 0 ROWS FETCH NEXT :limit ROWS ONLY
+                OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
                 """;
         return jdbc.query(sql, new MapSqlParameterSource()
                 .addValue("userId", userId)
+                .addValue("unreadOnly", unreadOnly ? 1 : 0)
+                .addValue("lessonId", lessonId)
+                .addValue("eventType", eventType)
+                .addValue("offset", Math.max(0, offset))
                 .addValue("limit", Math.max(1, limit)), mapper);
+    }
+
+    public int countUnread(Integer userId) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM notifications
+                WHERE user_id = :userId
+                  AND is_read = 0
+                """;
+        Integer count = jdbc.queryForObject(sql, new MapSqlParameterSource("userId", userId), Integer.class);
+        return count == null ? 0 : count;
+    }
+
+    public boolean existsByUserEventAndLesson(Integer userId, String eventType, Integer lessonId) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM notifications
+                WHERE user_id = :userId
+                  AND event_type = :eventType
+                  AND lesson_id = :lessonId
+                """;
+        Integer count = jdbc.queryForObject(sql, new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("eventType", eventType)
+                .addValue("lessonId", lessonId), Integer.class);
+        return count != null && count > 0;
     }
 
     public int markRead(Integer userId, List<Long> ids) {

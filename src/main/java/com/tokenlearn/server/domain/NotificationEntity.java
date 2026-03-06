@@ -21,6 +21,8 @@ public class NotificationEntity {
     private String courseName;
     private LocalDateTime scheduledAt;
     private String rejectionReason;
+    private String messageBody;
+    private Integer senderUserId;
     private String actionPath;
     private Boolean isRead;
     private LocalDateTime createdAt;

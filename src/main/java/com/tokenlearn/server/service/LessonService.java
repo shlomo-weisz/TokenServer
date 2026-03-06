@@ -14,6 +14,7 @@ import com.tokenlearn.server.domain.OutboxEventEntity;
 import com.tokenlearn.server.domain.RatingEntity;
 import com.tokenlearn.server.domain.TokenTransactionEntity;
 import com.tokenlearn.server.domain.UserEntity;
+import com.tokenlearn.server.dto.CreateLessonMessageRequest;
 import com.tokenlearn.server.dto.RateLessonRequest;
 import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.util.CourseLabelUtil;
@@ -38,6 +39,7 @@ public class LessonService {
     private final TokenTransactionDao tokenTransactionDao;
     private final RatingDao ratingDao;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     public LessonService(LessonDao lessonDao,
             LessonRequestDao lessonRequestDao,
@@ -46,7 +48,8 @@ public class LessonService {
             CourseDao courseDao,
             TokenTransactionDao tokenTransactionDao,
             RatingDao ratingDao,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            NotificationService notificationService) {
         this.lessonDao = lessonDao;
         this.lessonRequestDao = lessonRequestDao;
         this.outboxDao = outboxDao;
@@ -55,6 +58,7 @@ public class LessonService {
         this.tokenTransactionDao = tokenTransactionDao;
         this.ratingDao = ratingDao;
         this.objectMapper = objectMapper;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -137,6 +141,8 @@ public class LessonService {
                     .build());
         }
 
+        notificationService.createLessonCancelledNotification(lesson, request, actorId, reason);
+
         return Map.of(
                 "id", lessonId,
                 "status", "cancelled",
@@ -176,11 +182,13 @@ public class LessonService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", lesson.getLessonId());
         result.put("requestId", lesson.getRequestId());
+        result.put("role", lesson.getTutorId().equals(userId) ? "teacher" : "student");
         result.put("studentId", lesson.getStudentId());
         result.put("studentName", student == null ? "" : student.getFirstName() + " " + student.getLastName());
         result.put("tutorId", lesson.getTutorId());
         result.put("tutorName", tutor == null ? "" : tutor.getFirstName() + " " + tutor.getLastName());
         result.put("course", courseName);
+        result.put("dateTime", lesson.getStartTime());
         result.put("startTime", lesson.getStartTime());
         result.put("endTime", lesson.getEndTime());
         result.put("status", lesson.getStatus().toLowerCase());
@@ -237,6 +245,31 @@ public class LessonService {
                 "rating", request.getRating(),
                 "comment", request.getComment() == null ? "" : request.getComment(),
                 "ratedAt", LocalDateTime.now());
+    }
+
+    @Transactional
+    public Map<String, Object> sendLessonMessage(Integer lessonId, Integer senderId, CreateLessonMessageRequest request) {
+        LessonEntity lesson = requireLesson(lessonId);
+        if (!isParticipant(lesson, senderId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only lesson participants can send messages");
+        }
+        if (!"SCHEDULED".equals(lesson.getStatus())) {
+            throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Messages can only be sent for scheduled lessons");
+        }
+
+        String messageBody = request.getMessage() == null ? "" : request.getMessage().trim();
+        if (messageBody.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Message is required");
+        }
+
+        Long notificationId = notificationService.createLessonMessageNotification(lesson, senderId, messageBody);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("notificationId", notificationId);
+        out.put("lessonId", lessonId);
+        out.put("message", messageBody);
+        out.put("sentAt", LocalDateTime.now());
+        return out;
     }
 
     private LessonEntity requireLesson(Integer lessonId) {

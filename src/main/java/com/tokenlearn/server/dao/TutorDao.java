@@ -42,7 +42,7 @@ public class TutorDao {
                 .addValue("minRating", minRating));
     }
 
-    public List<Map<String, Object>> searchTutors(Integer excludeUserId, String courseName, BigDecimal minRating, int limit) {
+    public List<Map<String, Object>> searchTutors(Integer excludeUserId, String courseName, String tutorName, BigDecimal minRating, int limit) {
         String sql = """
                 SELECT
                     u.user_id AS id,
@@ -59,6 +59,12 @@ public class TutorDao {
                 WHERE u.is_blocked_tutor = 0
                   AND u.user_id <> :excludeUserId
                   AND (
+                      :tutorName IS NULL
+                      OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE LOWER(CONCAT('%', :tutorName, '%'))
+                      OR LOWER(u.first_name) LIKE LOWER(CONCAT('%', :tutorName, '%'))
+                      OR LOWER(u.last_name) LIKE LOWER(CONCAT('%', :tutorName, '%'))
+                  )
+                  AND (
                       :courseName IS NULL
                       OR LOWER(c.name) LIKE LOWER(CONCAT('%', :courseName, '%'))
                       OR LOWER(c.name_he) LIKE LOWER(CONCAT('%', :courseName, '%'))
@@ -73,6 +79,7 @@ public class TutorDao {
         return jdbc.queryForList(sql, new MapSqlParameterSource()
                 .addValue("excludeUserId", excludeUserId)
                 .addValue("courseName", courseName)
+                .addValue("tutorName", tutorName)
                 .addValue("minRating", minRating)
                 .addValue("limit", limit));
     }

@@ -87,6 +87,7 @@ public class LessonRequestService {
                 .build();
 
         Integer requestId = lessonRequestDao.create(entity);
+        entity.setRequestId(requestId);
 
         if (!userDao.reserveTokens(studentId, request.getTokenCost())) {
             throw new AppException(HttpStatus.PAYMENT_REQUIRED, "INSUFFICIENT_BALANCE", "Insufficient available balance");
@@ -101,6 +102,8 @@ public class LessonRequestService {
                 .status("SUCCESS")
                 .description("Token reservation for lesson request")
                 .build());
+
+        notificationService.createLessonRequestCreatedNotification(entity);
 
         return Map.of(
                 "requestId", requestId,
@@ -292,6 +295,12 @@ public class LessonRequestService {
         }
         if (specificStart.toLocalTime().isBefore(start) || specificEnd.toLocalTime().isAfter(end)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "TIME_OUT_OF_RANGE", "Selected time is outside tutor availability window");
+        }
+        if (!specificStart.isAfter(LocalDateTime.now().plusHours(6))) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "LESSON_TOO_SOON",
+                    "Lesson must be scheduled more than 6 hours in advance");
         }
 
         return new Slot(normalizedDay, start, end, specificStart, specificEnd);

@@ -7,7 +7,7 @@ public final class InputValidationPatterns {
     public static final String NAME = "^[\\p{L}\\p{M}](?:[\\p{L}\\p{M}'\\-\\s]{0,48}[\\p{L}\\p{M}])?$";
     public static final String PHONE = "^\\+?[0-9][0-9()\\-\\s]{5,19}$";
     public static final String NO_HTML_TAGS = "^[^<>]*$";
-    public static final String URL_HTTP_OR_BLOB = "^(https?://[^\\s<>]+|blob:[^\\s<>]+)$";
+    public static final String URL_HTTP_OR_BLOB = "^(?:|https?://[^\\s<>]+)$";
     public static final String TIME_24H = "^(?:[01]\\d|2[0-3]):[0-5]\\d$";
     public static final String TIME_OR_ISO_LOCAL_DATETIME = "^(?:(?:[01]\\d|2[0-3]):[0-5]\\d|\\d{4}-\\d{2}-\\d{2}T(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?)$";
     public static final String WEEKDAY_EN = "^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)$";

@@ -1,12 +1,15 @@
 package com.tokenlearn.server.service;
 
 import com.tokenlearn.server.dao.CourseDao;
+import com.tokenlearn.server.dao.LessonDao;
 import com.tokenlearn.server.dao.NotificationDao;
 import com.tokenlearn.server.dao.UserDao;
+import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.LessonRequestEntity;
 import com.tokenlearn.server.domain.NotificationEntity;
 import com.tokenlearn.server.domain.UserEntity;
 import com.tokenlearn.server.util.CourseLabelUtil;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,20 +19,42 @@ import java.util.Map;
 
 @Service
 public class NotificationService {
+    public static final String EVENT_LESSON_REQUEST_CREATED = "LESSON_REQUEST_CREATED";
+    public static final String EVENT_LESSON_REQUEST_APPROVED = "LESSON_REQUEST_APPROVED";
+    public static final String EVENT_LESSON_REQUEST_REJECTED = "LESSON_REQUEST_REJECTED";
+    public static final String EVENT_LESSON_CANCELLED = "LESSON_CANCELLED";
+    public static final String EVENT_LESSON_REMINDER = "LESSON_REMINDER";
+    public static final String EVENT_LESSON_MESSAGE = "LESSON_MESSAGE";
+
     private final NotificationDao notificationDao;
     private final UserDao userDao;
     private final CourseDao courseDao;
+    private final LessonDao lessonDao;
 
-    public NotificationService(NotificationDao notificationDao, UserDao userDao, CourseDao courseDao) {
+    public NotificationService(NotificationDao notificationDao, UserDao userDao, CourseDao courseDao, LessonDao lessonDao) {
         this.notificationDao = notificationDao;
         this.userDao = userDao;
         this.courseDao = courseDao;
+        this.lessonDao = lessonDao;
+    }
+
+    public void createLessonRequestCreatedNotification(LessonRequestEntity request) {
+        notificationDao.create(NotificationEntity.builder()
+                .userId(request.getTutorId())
+                .eventType(EVENT_LESSON_REQUEST_CREATED)
+                .requestId(request.getRequestId())
+                .counterpartName(resolveUserDisplayName(request.getStudentId()))
+                .courseName(resolveCourseLabel(request.getCourseId()))
+                .scheduledAt(request.getSpecificStartTime())
+                .actionPath("/lesson-requests")
+                .isRead(false)
+                .build());
     }
 
     public void createLessonRequestApprovedNotification(LessonRequestEntity request, Integer lessonId, LocalDateTime lessonStart) {
         notificationDao.create(NotificationEntity.builder()
                 .userId(request.getStudentId())
-                .eventType("LESSON_REQUEST_APPROVED")
+                .eventType(EVENT_LESSON_REQUEST_APPROVED)
                 .requestId(request.getRequestId())
                 .lessonId(lessonId)
                 .counterpartName(resolveUserDisplayName(request.getTutorId()))
@@ -43,7 +68,7 @@ public class NotificationService {
     public void createLessonRequestRejectedNotification(LessonRequestEntity request, String rejectionReason) {
         notificationDao.create(NotificationEntity.builder()
                 .userId(request.getStudentId())
-                .eventType("LESSON_REQUEST_REJECTED")
+                .eventType(EVENT_LESSON_REQUEST_REJECTED)
                 .requestId(request.getRequestId())
                 .counterpartName(resolveUserDisplayName(request.getTutorId()))
                 .courseName(resolveCourseLabel(request.getCourseId()))
@@ -54,10 +79,80 @@ public class NotificationService {
                 .build());
     }
 
+    public void createLessonCancelledNotification(LessonEntity lesson, LessonRequestEntity request, Integer actorId, String reason) {
+        Integer recipientId = actorId.equals(lesson.getStudentId()) ? lesson.getTutorId() : lesson.getStudentId();
+        Integer counterpartId = actorId;
+        notificationDao.create(NotificationEntity.builder()
+                .userId(recipientId)
+                .eventType(EVENT_LESSON_CANCELLED)
+                .requestId(request.getRequestId())
+                .lessonId(lesson.getLessonId())
+                .counterpartName(resolveUserDisplayName(counterpartId))
+                .courseName(resolveCourseLabel(lesson.getCourseId()))
+                .scheduledAt(lesson.getStartTime())
+                .rejectionReason(reason)
+                .actionPath("/lesson/" + lesson.getLessonId())
+                .isRead(false)
+                .build());
+    }
+
+    public Long createLessonMessageNotification(LessonEntity lesson, Integer senderId, String messageBody) {
+        Integer recipientId = senderId.equals(lesson.getStudentId()) ? lesson.getTutorId() : lesson.getStudentId();
+        String recipientName = resolveUserDisplayName(recipientId);
+        String senderName = resolveUserDisplayName(senderId);
+        String courseName = resolveCourseLabel(lesson.getCourseId());
+
+        Long recipientNotificationId = notificationDao.create(NotificationEntity.builder()
+                .userId(recipientId)
+                .eventType(EVENT_LESSON_MESSAGE)
+                .requestId(lesson.getRequestId())
+                .lessonId(lesson.getLessonId())
+                .counterpartName(senderName)
+                .courseName(courseName)
+                .scheduledAt(lesson.getStartTime())
+                .messageBody(messageBody)
+                .senderUserId(senderId)
+                .actionPath("/lesson/" + lesson.getLessonId())
+                .isRead(false)
+                .build());
+
+        notificationDao.create(NotificationEntity.builder()
+                .userId(senderId)
+                .eventType(EVENT_LESSON_MESSAGE)
+                .requestId(lesson.getRequestId())
+                .lessonId(lesson.getLessonId())
+                .counterpartName(recipientName)
+                .courseName(courseName)
+                .scheduledAt(lesson.getStartTime())
+                .messageBody(messageBody)
+                .senderUserId(senderId)
+                .actionPath("/lesson/" + lesson.getLessonId())
+                .isRead(true)
+                .build());
+
+        return recipientNotificationId;
+    }
+
     public List<Map<String, Object>> unreadForUser(Integer userId, int limit) {
         return notificationDao.findUnreadByUser(userId, limit).stream()
-                .map(this::toPayload)
+                .map(notification -> toPayload(notification, userId))
                 .toList();
+    }
+
+    public List<Map<String, Object>> listForUser(
+            Integer userId,
+            int limit,
+            int offset,
+            boolean unreadOnly,
+            Integer lessonId,
+            String eventType) {
+        return notificationDao.findByUser(userId, limit, offset, unreadOnly, lessonId, normalizeEventType(eventType)).stream()
+                .map(notification -> toPayload(notification, userId))
+                .toList();
+    }
+
+    public Map<String, Object> unreadCount(Integer userId) {
+        return Map.of("count", notificationDao.countUnread(userId));
     }
 
     public Map<String, Object> markRead(Integer userId, List<Long> ids) {
@@ -67,7 +162,40 @@ public class NotificationService {
         return Map.of("updatedCount", updatedCount);
     }
 
-    private Map<String, Object> toPayload(NotificationEntity notification) {
+    @Scheduled(fixedDelay = 300000, initialDelay = 60000)
+    public void createUpcomingLessonReminders() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fromTime = now.plusMinutes(50);
+        LocalDateTime toTime = now.plusMinutes(70);
+
+        lessonDao.findScheduledStartingBetween(fromTime, toTime)
+                .forEach(this::createReminderForLessonIfNeeded);
+    }
+
+    private void createReminderForLessonIfNeeded(LessonEntity lesson) {
+        createReminderForUserIfNeeded(lesson, lesson.getStudentId(), lesson.getTutorId());
+        createReminderForUserIfNeeded(lesson, lesson.getTutorId(), lesson.getStudentId());
+    }
+
+    private void createReminderForUserIfNeeded(LessonEntity lesson, Integer userId, Integer counterpartId) {
+        if (notificationDao.existsByUserEventAndLesson(userId, EVENT_LESSON_REMINDER, lesson.getLessonId())) {
+            return;
+        }
+
+        notificationDao.create(NotificationEntity.builder()
+                .userId(userId)
+                .eventType(EVENT_LESSON_REMINDER)
+                .requestId(lesson.getRequestId())
+                .lessonId(lesson.getLessonId())
+                .counterpartName(resolveUserDisplayName(counterpartId))
+                .courseName(resolveCourseLabel(lesson.getCourseId()))
+                .scheduledAt(lesson.getStartTime())
+                .actionPath("/lesson/" + lesson.getLessonId())
+                .isRead(false)
+                .build());
+    }
+
+    private Map<String, Object> toPayload(NotificationEntity notification, Integer userId) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", notification.getNotificationId());
         out.put("eventType", notification.getEventType());
@@ -77,6 +205,10 @@ public class NotificationService {
         out.put("courseName", notification.getCourseName());
         out.put("scheduledAt", notification.getScheduledAt());
         out.put("rejectionReason", notification.getRejectionReason());
+        out.put("messageBody", notification.getMessageBody());
+        out.put("senderUserId", notification.getSenderUserId());
+        out.put("senderName", resolveUserDisplayName(notification.getSenderUserId()));
+        out.put("isOwnMessage", notification.getSenderUserId() != null && notification.getSenderUserId().equals(userId));
         out.put("actionPath", notification.getActionPath());
         out.put("isRead", notification.getIsRead());
         out.put("createdAt", notification.getCreatedAt());
@@ -84,15 +216,28 @@ public class NotificationService {
     }
 
     private String resolveUserDisplayName(Integer userId) {
+        if (userId == null) {
+            return "";
+        }
         return userDao.findById(userId)
                 .map(this::formatDisplayName)
                 .orElse("");
     }
 
     private String resolveCourseLabel(Integer courseId) {
+        if (courseId == null) {
+            return "";
+        }
         return courseDao.findById(courseId)
                 .map(CourseLabelUtil::buildLabel)
                 .orElse("");
+    }
+
+    private String normalizeEventType(String eventType) {
+        if (eventType == null || eventType.isBlank()) {
+            return null;
+        }
+        return eventType.trim().toUpperCase();
     }
 
     private String formatDisplayName(UserEntity user) {

@@ -128,7 +128,11 @@ public class UserDao {
                 SET first_name = COALESCE(:firstName, first_name),
                     last_name = COALESCE(:lastName, last_name),
                     phone = COALESCE(:phone, phone),
-                    photo_url = COALESCE(:photoUrl, photo_url),
+                    photo_url = CASE
+                        WHEN :photoUrl IS NULL THEN photo_url
+                        WHEN :photoUrl = '' THEN NULL
+                        ELSE :photoUrl
+                    END,
                     about_me_as_teacher = COALESCE(:aboutTeacher, about_me_as_teacher),
                     about_me_as_student = COALESCE(:aboutStudent, about_me_as_student),
                     updated_at = GETUTCDATE()

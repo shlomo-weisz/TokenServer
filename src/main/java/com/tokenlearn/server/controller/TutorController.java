@@ -40,10 +40,11 @@ public class TutorController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> search(
             Authentication authentication,
             @RequestParam(required = false) String course,
+            @RequestParam(required = false) String name,
             @RequestParam(defaultValue = "0") BigDecimal minRating,
             @RequestParam(defaultValue = "20") int limit) {
         Integer userId = AuthUtil.requireUserId(authentication);
-        return ok(tutorService.search(userId, course, minRating, limit));
+        return ok(tutorService.search(userId, course, name, minRating, limit));
     }
 
     @GetMapping("/{tutorId}")

@@ -27,7 +27,7 @@ public class UpdateUserProfileRequest {
     private String phone;
 
     @Size(max = 500)
-    @Pattern(regexp = URL_HTTP_OR_BLOB, message = "Photo URL must be a valid http(s) or blob URL")
+    @Pattern(regexp = URL_HTTP_OR_BLOB, message = "Photo URL must be a valid http(s) URL")
     private String photoUrl;
 
     @Valid

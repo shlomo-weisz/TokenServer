@@ -36,8 +36,8 @@ public class TutorService {
         return enrichTutorRows(tutorDao.findRecommended(userId, limit, minRating));
     }
 
-    public List<Map<String, Object>> search(Integer userId, String course, BigDecimal minRating, int limit) {
-        return enrichTutorRows(tutorDao.searchTutors(userId, course, minRating, limit));
+    public List<Map<String, Object>> search(Integer userId, String course, String name, BigDecimal minRating, int limit) {
+        return enrichTutorRows(tutorDao.searchTutors(userId, course, name, minRating, limit));
     }
 
     public Map<String, Object> profile(Integer tutorId) {
