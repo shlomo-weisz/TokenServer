@@ -219,7 +219,7 @@ public class AdminService {
         tokenTransactionDao.create(TokenTransactionEntity.builder()
                 .payerId(userId)
                 .receiverId(userId)
-                .amount(amount.abs())
+                .amount(amount)
                 .txType("ADMIN_ADJUST")
                 .status("SUCCESS")
                 .description(request.getReason() == null ? "Admin adjustment" : request.getReason())

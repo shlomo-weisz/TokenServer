@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class TokenService {
@@ -81,7 +82,14 @@ public class TokenService {
 
     public Map<String, Object> history(Integer userId, int limit, int offset) {
         List<Map<String, Object>> txs = transactionDao.findByUser(userId, limit, offset).stream().map(tx -> {
-            BigDecimal signedAmount = tx.getPayerId().equals(userId) ? tx.getAmount().negate() : tx.getAmount();
+            BigDecimal rawAmount = tx.getAmount() == null ? BigDecimal.ZERO : tx.getAmount();
+            BigDecimal signedAmount = switch (String.valueOf(tx.getTxType())) {
+                case "PURCHASE", "BONUS", "REFUND" -> rawAmount.abs();
+                case "RESERVATION" -> rawAmount.abs().negate();
+                case "ADMIN_ADJUST" -> rawAmount;
+                case "TRANSFER", "SETTLEMENT" -> Objects.equals(tx.getPayerId(), userId) ? rawAmount.abs().negate() : rawAmount.abs();
+                default -> Objects.equals(tx.getPayerId(), userId) ? rawAmount.abs().negate() : rawAmount.abs();
+            };
             String type = switch (tx.getTxType()) {
                 case "PURCHASE" -> "purchase";
                 case "BONUS" -> "bonus";
