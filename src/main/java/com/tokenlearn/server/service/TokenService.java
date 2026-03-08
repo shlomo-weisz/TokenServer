@@ -51,7 +51,7 @@ public class TokenService {
                 .amount(request.getAmount())
                 .txType("PURCHASE")
                 .status("SUCCESS")
-                .description("Token purchase")
+                .description("Tokens added by purchase")
                 .build());
         TokenBalancesDto b = userDao.getBalances(userId);
         return Map.of("success", true, "newBalance", b.getTotal(), "transactionId", "txn_" + txId);
@@ -74,7 +74,7 @@ public class TokenService {
                 .amount(request.getAmount())
                 .txType("TRANSFER")
                 .status("SUCCESS")
-                .description(request.getReason() == null ? "Token transfer" : request.getReason())
+                .description(request.getReason() == null ? "Tokens transferred to another user" : request.getReason())
                 .build());
         TokenBalancesDto b = userDao.getBalances(fromUserId);
         return Map.of("success", true, "newBalance", b.getTotal(), "transactionId", "txn_" + txId);

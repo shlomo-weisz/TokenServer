@@ -66,7 +66,7 @@ public class SettlementService {
                     .txType("SETTLEMENT")
                     .status("SUCCESS")
                     .messageId(messageId)
-                    .description("Lesson settlement payment")
+                    .description("Tokens transferred to tutor after lesson completion")
                     .build());
             log.info("Settlement completed for request {}, message {}", requestId, messageId);
         } catch (Exception ex) {

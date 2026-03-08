@@ -83,6 +83,33 @@ public class LessonRequestDao {
         return jdbc.update(sql, new MapSqlParameterSource().addValue("id", requestId).addValue("status", status));
     }
 
+    public int transitionStatus(Integer requestId, String expectedStatus, String newStatus) {
+        String sql = """
+                UPDATE lesson_requests
+                SET status=:newStatus, updated_at=GETUTCDATE()
+                WHERE request_id=:id
+                  AND status=:expectedStatus
+                """;
+        return jdbc.update(sql, new MapSqlParameterSource()
+                .addValue("id", requestId)
+                .addValue("expectedStatus", expectedStatus)
+                .addValue("newStatus", newStatus));
+    }
+
+    public int transitionStatusWithRejection(Integer requestId, String expectedStatus, String newStatus, String reason) {
+        String sql = """
+                UPDATE lesson_requests
+                SET status=:newStatus, rejection_message=:reason, updated_at=GETUTCDATE()
+                WHERE request_id=:id
+                  AND status=:expectedStatus
+                """;
+        return jdbc.update(sql, new MapSqlParameterSource()
+                .addValue("id", requestId)
+                .addValue("expectedStatus", expectedStatus)
+                .addValue("newStatus", newStatus)
+                .addValue("reason", reason));
+    }
+
     public int updateStatusWithRejection(Integer requestId, String status, String reason) {
         String sql = """
                 UPDATE lesson_requests
@@ -113,6 +140,17 @@ public class LessonRequestDao {
                 ORDER BY created_at DESC
                 """;
         return jdbc.query(sql, new MapSqlParameterSource().addValue("userId", userId).addValue("status", status), mapper);
+    }
+
+    public List<LessonRequestEntity> findPendingExpiringBefore(LocalDateTime latestAllowedStartTime) {
+        String sql = """
+                SELECT * FROM lesson_requests
+                WHERE status = 'PENDING'
+                  AND specific_start_time IS NOT NULL
+                  AND specific_start_time <= :latestAllowedStartTime
+                ORDER BY specific_start_time ASC, request_id ASC
+                """;
+        return jdbc.query(sql, new MapSqlParameterSource("latestAllowedStartTime", latestAllowedStartTime), mapper);
     }
 
     public int countByStatus(String status) {

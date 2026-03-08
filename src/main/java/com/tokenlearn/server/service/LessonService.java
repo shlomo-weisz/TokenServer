@@ -138,7 +138,7 @@ public class LessonService {
                     .amount(request.getTokenCost())
                     .txType("REFUND")
                     .status("SUCCESS")
-                    .description("Refund due to lesson cancellation")
+                    .description("Tokens released because the lesson was cancelled")
                     .build());
         }
 

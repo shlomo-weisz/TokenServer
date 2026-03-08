@@ -17,7 +17,9 @@ import com.tokenlearn.server.dto.RequestedSlotDto;
 import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.util.CourseLabelUtil;
 import com.tokenlearn.server.util.WeekdayUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class LessonRequestService {
@@ -42,6 +43,7 @@ public class LessonRequestService {
     private final TokenTransactionDao tokenTransactionDao;
     private final LessonDao lessonDao;
     private final NotificationService notificationService;
+    private final long approvalBufferHours;
 
     public LessonRequestService(LessonRequestDao lessonRequestDao,
             UserDao userDao,
@@ -49,7 +51,8 @@ public class LessonRequestService {
             TutorDao tutorDao,
             TokenTransactionDao tokenTransactionDao,
             LessonDao lessonDao,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            @Value("${app.lesson-request-approval-buffer-hours:6}") long approvalBufferHours) {
         this.lessonRequestDao = lessonRequestDao;
         this.userDao = userDao;
         this.courseDao = courseDao;
@@ -57,6 +60,7 @@ public class LessonRequestService {
         this.tokenTransactionDao = tokenTransactionDao;
         this.lessonDao = lessonDao;
         this.notificationService = notificationService;
+        this.approvalBufferHours = approvalBufferHours;
     }
 
     @Transactional
@@ -101,7 +105,7 @@ public class LessonRequestService {
                 .amount(request.getTokenCost())
                 .txType("RESERVATION")
                 .status("SUCCESS")
-                .description("Token reservation for lesson request")
+                .description("Tokens reserved for lesson request")
                 .build());
 
         notificationService.createLessonRequestCreatedNotification(entity);
@@ -119,10 +123,10 @@ public class LessonRequestService {
         if (!req.getTutorId().equals(tutorId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only the tutor can approve this request");
         }
-        if (!"PENDING".equals(req.getStatus())) {
-            throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Request must be pending");
+        expireIfNeeded(req);
+        if (lessonRequestDao.transitionStatus(requestId, "PENDING", "APPROVED") != 1) {
+            throwInvalidPendingTransition(requestId, "Request must be pending");
         }
-        lessonRequestDao.updateStatus(requestId, "APPROVED");
 
         LocalDateTime start = req.getSpecificStartTime() != null ? req.getSpecificStartTime() : LocalDateTime.now().plusDays(1);
         LocalDateTime end = req.getSpecificEndTime() != null ? req.getSpecificEndTime() : start.plusHours(1);
@@ -149,17 +153,17 @@ public class LessonRequestService {
         if (!req.getTutorId().equals(tutorId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only the tutor can reject this request");
         }
-        if (!"PENDING".equals(req.getStatus())) {
-            throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Only pending requests can be rejected");
-        }
 
         String reason = input.getRejectionMessage() != null ? input.getRejectionMessage()
                 : (input.getReason() == null ? "No reason provided" : input.getReason());
 
+        expireIfNeeded(req);
+        if (lessonRequestDao.transitionStatusWithRejection(req.getRequestId(), "PENDING", "REJECTED", reason) != 1) {
+            throwInvalidPendingTransition(req.getRequestId(), "Only pending requests can be rejected");
+        }
         if (!userDao.refundTokens(req.getStudentId(), req.getTokenCost())) {
             throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Failed to refund locked tokens");
         }
-        lessonRequestDao.updateStatusWithRejection(req.getRequestId(), "REJECTED", reason);
         tokenTransactionDao.create(TokenTransactionEntity.builder()
                 .requestId(req.getRequestId())
                 .payerId(req.getStudentId())
@@ -167,7 +171,7 @@ public class LessonRequestService {
                 .amount(req.getTokenCost())
                 .txType("REFUND")
                 .status("SUCCESS")
-                .description("Refund due to request rejection")
+                .description("Tokens released because the lesson request was rejected")
                 .build());
         notificationService.createLessonRequestRejectedNotification(req, reason);
 
@@ -184,14 +188,14 @@ public class LessonRequestService {
         if (!req.getStudentId().equals(studentId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only the student can cancel this request");
         }
-        if (!"PENDING".equals(req.getStatus())) {
-            throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Only pending requests can be cancelled");
-        }
 
+        expireIfNeeded(req);
+        if (lessonRequestDao.transitionStatus(req.getRequestId(), "PENDING", "CANCELLED") != 1) {
+            throwInvalidPendingTransition(req.getRequestId(), "Only pending requests can be cancelled");
+        }
         if (!userDao.refundTokens(req.getStudentId(), req.getTokenCost())) {
             throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Failed to refund locked tokens");
         }
-        lessonRequestDao.updateStatus(req.getRequestId(), "CANCELLED");
         tokenTransactionDao.create(TokenTransactionEntity.builder()
                 .requestId(req.getRequestId())
                 .payerId(req.getStudentId())
@@ -199,12 +203,22 @@ public class LessonRequestService {
                 .amount(req.getTokenCost())
                 .txType("REFUND")
                 .status("SUCCESS")
-                .description("Refund due to request cancellation")
+                .description("Tokens released because the lesson request was cancelled")
                 .build());
 
         return Map.of(
                 "message", "Lesson request cancelled",
                 "tokenMovement", Map.of("fromLockedToAvailable", req.getTokenCost()));
+    }
+
+    @Scheduled(
+            fixedDelayString = "${app.lesson-request-expiration-scan-ms:60000}",
+            initialDelayString = "${app.lesson-request-expiration-initial-delay-ms:60000}")
+    @Transactional
+    public void expirePendingRequests() {
+        LocalDateTime latestAllowedStartTime = approvalExpiryCutoff(LocalDateTime.now());
+        lessonRequestDao.findPendingExpiringBefore(latestAllowedStartTime)
+                .forEach(this::expirePendingRequest);
     }
 
     public List<Map<String, Object>> listForStudent(Integer studentId, String status) {
@@ -297,11 +311,11 @@ public class LessonRequestService {
         if (specificStart.toLocalTime().isBefore(start) || specificEnd.toLocalTime().isAfter(end)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "TIME_OUT_OF_RANGE", "Selected time is outside tutor availability window");
         }
-        if (!specificStart.isAfter(LocalDateTime.now().plusHours(6))) {
+        if (!specificStart.isAfter(LocalDateTime.now().plusHours(approvalBufferHours))) {
             throw new AppException(
                     HttpStatus.BAD_REQUEST,
                     "LESSON_TOO_SOON",
-                    "Lesson must be scheduled more than 6 hours in advance");
+                    "Lesson must be scheduled more than " + approvalBufferHours + " hours in advance");
         }
 
         return new Slot(normalizedDay, start, end, specificStart, specificEnd);
@@ -339,6 +353,50 @@ public class LessonRequestService {
 
     private String normalizeStatus(String status) {
         return status == null || status.isBlank() ? null : status.toUpperCase();
+    }
+
+    private void expireIfNeeded(LessonRequestEntity req) {
+        if (!isPendingAndExpired(req)) {
+            return;
+        }
+        expirePendingRequest(req);
+        throw new AppException(HttpStatus.CONFLICT, "REQUEST_EXPIRED", "Request approval window has expired");
+    }
+
+    private boolean isPendingAndExpired(LessonRequestEntity req) {
+        return "PENDING".equals(req.getStatus())
+                && req.getSpecificStartTime() != null
+                && !req.getSpecificStartTime().isAfter(approvalExpiryCutoff(LocalDateTime.now()));
+    }
+
+    private LocalDateTime approvalExpiryCutoff(LocalDateTime now) {
+        return now.plusHours(approvalBufferHours);
+    }
+
+    private void expirePendingRequest(LessonRequestEntity req) {
+        if (lessonRequestDao.transitionStatus(req.getRequestId(), "PENDING", "EXPIRED") != 1) {
+            return;
+        }
+        if (!userDao.refundTokens(req.getStudentId(), req.getTokenCost())) {
+            throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Failed to refund locked tokens for expired request");
+        }
+        tokenTransactionDao.create(TokenTransactionEntity.builder()
+                .requestId(req.getRequestId())
+                .payerId(req.getStudentId())
+                .receiverId(req.getStudentId())
+                .amount(req.getTokenCost())
+                .txType("REFUND")
+                .status("SUCCESS")
+                .description("Tokens released because the lesson request expired")
+                .build());
+    }
+
+    private void throwInvalidPendingTransition(Integer requestId, String defaultMessage) {
+        LessonRequestEntity current = requireRequest(requestId);
+        if ("EXPIRED".equals(current.getStatus())) {
+            throw new AppException(HttpStatus.CONFLICT, "REQUEST_EXPIRED", "Request approval window has expired");
+        }
+        throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", defaultMessage);
     }
 
     private CourseEntity findCourse(Integer courseId) {

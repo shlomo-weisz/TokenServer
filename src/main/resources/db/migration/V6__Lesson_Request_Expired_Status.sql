@@ -1,0 +1,5 @@
+ALTER TABLE lesson_requests DROP CONSTRAINT CHK_lr_status;
+
+ALTER TABLE lesson_requests
+ADD CONSTRAINT CHK_lr_status
+CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED', 'EXPIRED'));

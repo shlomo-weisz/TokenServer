@@ -222,7 +222,7 @@ public class AdminService {
                 .amount(amount)
                 .txType("ADMIN_ADJUST")
                 .status("SUCCESS")
-                .description(request.getReason() == null ? "Admin adjustment" : request.getReason())
+                .description(request.getReason() == null ? "Balance adjusted by administrator" : request.getReason())
                 .build());
         BigDecimal newTotal = userDao.getBalances(userId).getTotal();
         return Map.of("userId", userId, "newBalance", newTotal, "adjustment", amount);
