@@ -20,6 +20,7 @@ import com.tokenlearn.server.dto.RateLessonRequest;
 import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.util.CourseLabelUtil;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,46 +69,26 @@ public class LessonService {
         if (!isParticipant(lesson, actorId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only lesson participants can complete");
         }
-        if (!"SCHEDULED".equals(lesson.getStatus())) {
-            throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Only scheduled lessons can be completed");
+        LocalDateTime completedAt = LocalDateTime.now();
+        if (!hasLessonEnded(lesson, completedAt)) {
+            throw new AppException(HttpStatus.CONFLICT, "LESSON_NOT_FINISHED", "Lesson can be completed only after its end time");
         }
         LessonRequestEntity request = requireRequest(lesson.getRequestId());
+        return completeScheduledLesson(lesson, request, completedAt, true);
+    }
 
-        lessonDao.updateStatus(lessonId, "COMPLETED");
-        lessonRequestDao.updateStatus(request.getRequestId(), "COMPLETED");
-
-        String messageId = UUID.randomUUID().toString();
-        Map<String, Object> payload = Map.of(
-                "lessonId", lessonId,
-                "requestId", request.getRequestId(),
-                "studentId", request.getStudentId(),
-                "tutorId", request.getTutorId(),
-                "amount", request.getTokenCost(),
-                "timestamp", LocalDateTime.now().toString(),
-                "messageId", messageId);
-        String payloadJson;
-        try {
-            payloadJson = objectMapper.writeValueAsString(payload);
-        } catch (Exception ex) {
-            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "SERIALIZATION_ERROR", "Failed to serialize settlement payload");
-        }
-
-        outboxDao.create(OutboxEventEntity.builder()
-                .aggregateType("LESSON")
-                .aggregateId(lessonId)
-                .eventType("LESSON_COMPLETED")
-                .payloadJson(payloadJson)
-                .messageId(messageId)
-                .status("NEW")
-                .build());
-
-        return Map.of(
-                "id", lessonId,
-                "status", "completed",
-                "completedAt", LocalDateTime.now(),
-                "tokenSettlement", Map.of(
-                        "studentLockedDebited", request.getTokenCost(),
-                        "tutorAvailableCredited", request.getTokenCost()));
+    @Scheduled(
+            fixedDelayString = "${app.lesson-auto-complete-scan-ms:60000}",
+            initialDelayString = "${app.lesson-auto-complete-initial-delay-ms:60000}")
+    @Transactional
+    public void autoCompletePastLessons() {
+        LocalDateTime now = LocalDateTime.now();
+        lessonDao.findScheduledEndingBefore(now)
+                .forEach(lesson -> completeScheduledLesson(
+                        lesson,
+                        requireRequest(lesson.getRequestId()),
+                        now,
+                        false));
     }
 
     @Transactional
@@ -318,6 +299,77 @@ public class LessonService {
 
     private boolean isParticipant(LessonEntity lesson, Integer userId) {
         return lesson.getStudentId().equals(userId) || lesson.getTutorId().equals(userId);
+    }
+
+    private boolean hasLessonEnded(LessonEntity lesson, LocalDateTime now) {
+        return lesson.getEndTime() != null && !lesson.getEndTime().isAfter(now);
+    }
+
+    private Map<String, Object> completeScheduledLesson(
+            LessonEntity lesson,
+            LessonRequestEntity request,
+            LocalDateTime completedAt,
+            boolean failIfAlreadyProcessed) {
+        if (!"SCHEDULED".equals(lesson.getStatus())) {
+            if ("COMPLETED".equals(lesson.getStatus())) {
+                return buildCompletionResponse(lesson.getLessonId(), lesson.getUpdatedAt(), request.getTokenCost());
+            }
+            if (failIfAlreadyProcessed) {
+                throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Only scheduled lessons can be completed");
+            }
+            return Map.of();
+        }
+
+        int updated = lessonDao.transitionStatus(lesson.getLessonId(), "SCHEDULED", "COMPLETED");
+        if (updated != 1) {
+            LessonEntity current = requireLesson(lesson.getLessonId());
+            if ("COMPLETED".equals(current.getStatus())) {
+                return buildCompletionResponse(current.getLessonId(), current.getUpdatedAt(), request.getTokenCost());
+            }
+            if (failIfAlreadyProcessed) {
+                throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Only scheduled lessons can be completed");
+            }
+            return Map.of();
+        }
+
+        lessonRequestDao.updateStatus(request.getRequestId(), "COMPLETED");
+
+        String messageId = UUID.randomUUID().toString();
+        Map<String, Object> payload = Map.of(
+                "lessonId", lesson.getLessonId(),
+                "requestId", request.getRequestId(),
+                "studentId", request.getStudentId(),
+                "tutorId", request.getTutorId(),
+                "amount", request.getTokenCost(),
+                "timestamp", completedAt.toString(),
+                "messageId", messageId);
+        String payloadJson;
+        try {
+            payloadJson = objectMapper.writeValueAsString(payload);
+        } catch (Exception ex) {
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "SERIALIZATION_ERROR", "Failed to serialize settlement payload");
+        }
+
+        outboxDao.create(OutboxEventEntity.builder()
+                .aggregateType("LESSON")
+                .aggregateId(lesson.getLessonId())
+                .eventType("LESSON_COMPLETED")
+                .payloadJson(payloadJson)
+                .messageId(messageId)
+                .status("NEW")
+                .build());
+
+        return buildCompletionResponse(lesson.getLessonId(), completedAt, request.getTokenCost());
+    }
+
+    private Map<String, Object> buildCompletionResponse(Integer lessonId, LocalDateTime completedAt, BigDecimal amount) {
+        return Map.of(
+                "id", lessonId,
+                "status", "completed",
+                "completedAt", completedAt,
+                "tokenSettlement", Map.of(
+                        "studentLockedDebited", amount,
+                        "tutorAvailableCredited", amount));
     }
 
     private String normalizeRole(String role) {

@@ -75,6 +75,19 @@ public class LessonDao {
         return jdbc.update(sql, new MapSqlParameterSource().addValue("id", lessonId).addValue("status", status));
     }
 
+    public int transitionStatus(Integer lessonId, String expectedStatus, String newStatus) {
+        String sql = """
+                UPDATE lessons
+                SET status=:newStatus, updated_at=GETUTCDATE()
+                WHERE lesson_id=:id
+                  AND status=:expectedStatus
+                """;
+        return jdbc.update(sql, new MapSqlParameterSource()
+                .addValue("id", lessonId)
+                .addValue("expectedStatus", expectedStatus)
+                .addValue("newStatus", newStatus));
+    }
+
     public List<LessonEntity> findUpcomingByUser(Integer userId, String role) {
         String sql = """
                 SELECT * FROM lessons
@@ -134,6 +147,17 @@ public class LessonDao {
         return jdbc.query(sql, new MapSqlParameterSource()
                 .addValue("fromTime", from)
                 .addValue("toTime", to), mapper);
+    }
+
+    public List<LessonEntity> findScheduledEndingBefore(LocalDateTime cutoff) {
+        String sql = """
+                SELECT * FROM lessons
+                WHERE status = 'SCHEDULED'
+                  AND end_time <= :cutoff
+                ORDER BY end_time ASC
+                """;
+        return jdbc.query(sql, new MapSqlParameterSource()
+                .addValue("cutoff", cutoff), mapper);
     }
 
     public List<LessonEntity> findByUserBetween(Integer userId, String role, String status, LocalDateTime from, LocalDateTime to) {
