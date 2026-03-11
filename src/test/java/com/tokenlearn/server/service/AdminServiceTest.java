@@ -32,6 +32,7 @@ class AdminServiceTest {
     private LessonDao lessonDao;
     private RatingDao ratingDao;
     private CourseDao courseDao;
+    private TokenService tokenService;
     private AdminService adminService;
 
     @BeforeEach
@@ -42,6 +43,7 @@ class AdminServiceTest {
         ratingDao = mock(RatingDao.class);
         TokenTransactionDao tokenTransactionDao = mock(TokenTransactionDao.class);
         courseDao = mock(CourseDao.class);
+        tokenService = mock(TokenService.class);
 
         adminService = new AdminService(
                 userDao,
@@ -49,7 +51,8 @@ class AdminServiceTest {
                 lessonDao,
                 ratingDao,
                 tokenTransactionDao,
-                courseDao);
+                courseDao,
+                tokenService);
     }
 
     @Test
@@ -157,6 +160,26 @@ class AdminServiceTest {
         assertEquals("5.00", String.valueOf(result.get("rating")));
         assertEquals("Updated by admin", result.get("comment"));
         assertNull(result.get("courseId"));
+    }
+
+    @Test
+    void userTokenHistoryReturnsTargetUserAuditTrailForAdmin() {
+        UserEntity admin = user(1, "admin@tokenlearn.com", "Admin", "User", true);
+        UserEntity target = user(9, "student@tokenlearn.com", "Dana", "Student", false);
+
+        when(userDao.findById(1)).thenReturn(Optional.of(admin));
+        when(userDao.findById(9)).thenReturn(Optional.of(target));
+        when(tokenService.history(9, 25, 0)).thenReturn(Map.of(
+                "transactions", List.of(Map.of("id", "txn_10", "reason", "Balance adjusted by administrator")),
+                "totalCount", 1));
+
+        Map<String, Object> result = adminService.userTokenHistory(1, 9, 25, 0);
+
+        assertEquals(9, result.get("userId"));
+        assertEquals("student@tokenlearn.com", result.get("email"));
+        assertEquals("Dana Student", result.get("fullName"));
+        assertEquals(1, result.get("totalCount"));
+        verify(tokenService).history(9, 25, 0);
     }
 
     private UserEntity user(Integer id, String email, String firstName, String lastName, boolean isAdmin) {

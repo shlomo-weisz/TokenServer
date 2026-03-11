@@ -35,19 +35,22 @@ public class AdminService {
     private final RatingDao ratingDao;
     private final TokenTransactionDao tokenTransactionDao;
     private final CourseDao courseDao;
+    private final TokenService tokenService;
 
     public AdminService(UserDao userDao,
             AdminDao adminDao,
             LessonDao lessonDao,
             RatingDao ratingDao,
             TokenTransactionDao tokenTransactionDao,
-            CourseDao courseDao) {
+            CourseDao courseDao,
+            TokenService tokenService) {
         this.userDao = userDao;
         this.adminDao = adminDao;
         this.lessonDao = lessonDao;
         this.ratingDao = ratingDao;
         this.tokenTransactionDao = tokenTransactionDao;
         this.courseDao = courseDao;
+        this.tokenService = tokenService;
     }
 
     public void requireAdmin(Integer userId) {
@@ -253,6 +256,18 @@ public class AdminService {
                 .build());
         BigDecimal newTotal = userDao.getBalances(userId).getTotal();
         return Map.of("userId", userId, "newBalance", newTotal, "adjustment", amount);
+    }
+
+    public Map<String, Object> userTokenHistory(Integer adminId, Integer userId, int limit, int offset) {
+        requireAdmin(adminId);
+        UserEntity targetUser = userDao.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
+
+        Map<String, Object> history = new LinkedHashMap<>(tokenService.history(userId, limit, offset));
+        history.put("userId", targetUser.getUserId());
+        history.put("email", targetUser.getEmail());
+        history.put("fullName", formatDisplayName(targetUser));
+        return history;
     }
 
     private boolean matchRole(Integer userId, String role) {

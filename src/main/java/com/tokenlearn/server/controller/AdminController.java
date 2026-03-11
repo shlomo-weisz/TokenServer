@@ -108,6 +108,16 @@ public class AdminController {
         return ok(adminService.adjustTokens(userId, request));
     }
 
+    @GetMapping("/users/{userId}/tokens/history")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> userTokenHistory(
+            Authentication authentication,
+            @PathVariable Integer userId,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Integer adminId = AuthUtil.requireUserId(authentication);
+        return ok(adminService.userTokenHistory(adminId, userId, limit, offset));
+    }
+
     @PutMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(
             Authentication authentication,
