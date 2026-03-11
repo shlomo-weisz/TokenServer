@@ -8,8 +8,10 @@ import com.tokenlearn.server.dao.TokenTransactionDao;
 import com.tokenlearn.server.dao.UserDao;
 import com.tokenlearn.server.domain.CourseEntity;
 import com.tokenlearn.server.domain.LessonEntity;
+import com.tokenlearn.server.domain.RatingEntity;
 import com.tokenlearn.server.domain.TokenTransactionEntity;
 import com.tokenlearn.server.domain.UserEntity;
+import com.tokenlearn.server.dto.AdminUpdateRatingRequest;
 import com.tokenlearn.server.dto.AdminUpdateUserRequest;
 import com.tokenlearn.server.dto.SimpleCourseDto;
 import com.tokenlearn.server.dto.UpdateUserTokensRequest;
@@ -201,6 +203,31 @@ public class AdminService {
         return Map.of("lessons", lessons, "totalCount", lessonDao.countAllForAdmin(status == null ? null : status.toUpperCase()));
     }
 
+    public Map<String, Object> listRatings(int limit, int offset) {
+        List<Map<String, Object>> ratings = ratingDao.findAll(limit, offset).stream()
+                .map(this::toAdminRating)
+                .toList();
+        return Map.of(
+                "ratings", ratings,
+                "totalCount", ratingDao.countAll());
+    }
+
+    @Transactional
+    public Map<String, Object> updateRating(Integer adminId, Integer ratingId, AdminUpdateRatingRequest request) {
+        requireAdmin(adminId);
+        ratingDao.findById(ratingId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Rating not found"));
+
+        int updatedCount = ratingDao.update(ratingId, request.getRating(), nullableTrim(request.getComment()));
+        if (updatedCount != 1) {
+            throw new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Rating not found");
+        }
+
+        RatingEntity updated = ratingDao.findById(ratingId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Rating not found"));
+        return toAdminRating(updated);
+    }
+
     @Transactional
     public Map<String, Object> adjustTokens(Integer userId, UpdateUserTokensRequest request) {
         UserEntity user = userDao.findById(userId).orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
@@ -264,6 +291,43 @@ public class AdminService {
         return out;
     }
 
+    private Map<String, Object> toAdminRating(RatingEntity rating) {
+        LessonEntity lesson = lessonDao.findById(rating.getLessonId()).orElse(null);
+        UserEntity fromUser = userDao.findById(rating.getFromUserId()).orElse(null);
+        UserEntity toUser = userDao.findById(rating.getToUserId()).orElse(null);
+        UserEntity student = lesson == null ? null : userDao.findById(lesson.getStudentId()).orElse(null);
+        UserEntity tutor = lesson == null ? null : userDao.findById(lesson.getTutorId()).orElse(null);
+        CourseEntity course = lesson == null || lesson.getCourseId() == null
+                ? null
+                : courseDao.findById(lesson.getCourseId()).orElse(null);
+        String courseLabel = course == null ? "" : CourseLabelUtil.buildLabel(course);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", rating.getRatingId());
+        out.put("lessonId", rating.getLessonId());
+        out.put("fromUserId", rating.getFromUserId());
+        out.put("fromUserName", formatDisplayName(fromUser));
+        out.put("toUserId", rating.getToUserId());
+        out.put("toUserName", formatDisplayName(toUser));
+        out.put("studentId", lesson == null ? null : lesson.getStudentId());
+        out.put("studentName", formatDisplayName(student));
+        out.put("tutorId", lesson == null ? null : lesson.getTutorId());
+        out.put("tutorName", formatDisplayName(tutor));
+        out.put("course", courseLabel);
+        out.put("courseLabel", courseLabel);
+        out.put("courseId", course == null ? null : course.getCourseId());
+        out.put("courseNumber", course == null ? null : course.getCourseNumber());
+        out.put("courseNameHe", course == null ? null : course.getNameHe());
+        out.put("courseNameEn", course == null ? null : course.getNameEn());
+        out.put("rating", rating.getScore());
+        out.put("comment", rating.getComment() == null ? "" : rating.getComment());
+        out.put("createdAt", rating.getCreatedAt());
+        out.put("lessonStartTime", lesson == null ? null : lesson.getStartTime());
+        out.put("lessonEndTime", lesson == null ? null : lesson.getEndTime());
+        out.put("lessonStatus", lesson == null || lesson.getStatus() == null ? null : lesson.getStatus().toLowerCase());
+        return out;
+    }
+
     private List<SimpleCourseDto> toSimpleCourses(List<CourseEntity> courses) {
         return courses.stream()
                 .map(course -> SimpleCourseDto.builder()
@@ -282,5 +346,15 @@ public class AdminService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String formatDisplayName(UserEntity user) {
+        if (user == null) {
+            return "";
+        }
+        String firstName = user.getFirstName() == null ? "" : user.getFirstName().trim();
+        String lastName = user.getLastName() == null ? "" : user.getLastName().trim();
+        String fullName = (firstName + " " + lastName).trim();
+        return fullName.isEmpty() ? (user.getEmail() == null ? "" : user.getEmail()) : fullName;
     }
 }

@@ -1,6 +1,7 @@
 package com.tokenlearn.server.controller;
 
 import com.tokenlearn.server.dto.ApiResponse;
+import com.tokenlearn.server.dto.AdminUpdateRatingRequest;
 import com.tokenlearn.server.dto.AdminUpdateUserRequest;
 import com.tokenlearn.server.dto.ContactAdminRequest;
 import com.tokenlearn.server.dto.UpdateUserTokensRequest;
@@ -87,6 +88,16 @@ public class AdminController {
         return ok(adminService.listLessons(status, limit, offset));
     }
 
+    @GetMapping("/ratings")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> ratings(
+            Authentication authentication,
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        adminService.requireAdmin(userId);
+        return ok(adminService.listRatings(limit, offset));
+    }
+
     @PutMapping("/users/{userId}/tokens")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateTokens(
             Authentication authentication,
@@ -104,6 +115,15 @@ public class AdminController {
             @Valid @RequestBody AdminUpdateUserRequest request) {
         Integer adminId = AuthUtil.requireUserId(authentication);
         return ok(adminService.updateUser(adminId, userId, request));
+    }
+
+    @PutMapping("/ratings/{ratingId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateRating(
+            Authentication authentication,
+            @PathVariable Integer ratingId,
+            @Valid @RequestBody AdminUpdateRatingRequest request) {
+        Integer adminId = AuthUtil.requireUserId(authentication);
+        return ok(adminService.updateRating(adminId, ratingId, request));
     }
 
     @DeleteMapping("/users/{userId}")

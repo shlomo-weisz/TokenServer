@@ -100,6 +100,9 @@ public class LessonService {
         if (!"SCHEDULED".equals(lesson.getStatus())) {
             throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Only scheduled lessons can be cancelled");
         }
+        if (hasLessonEnded(lesson, LocalDateTime.now())) {
+            throw new AppException(HttpStatus.CONFLICT, "LESSON_ALREADY_ENDED", "Past lessons cannot be cancelled");
+        }
 
         LessonRequestEntity request = requireRequest(lesson.getRequestId());
 
@@ -176,6 +179,12 @@ public class LessonService {
         result.put("status", lesson.getStatus().toLowerCase());
         result.put("tokenCost", lesson.getTokenCost());
         result.put("message", request.getMessage());
+        ratingDao.findByLessonAndFromUser(lessonId, userId).ifPresent(rating -> {
+            result.put("ratedAt", rating.getCreatedAt());
+            result.put("myRating", Map.of(
+                    "rating", rating.getScore(),
+                    "comment", rating.getComment() == null ? "" : rating.getComment()));
+        });
         return result;
     }
 
@@ -243,6 +252,9 @@ public class LessonService {
         Integer toUserId = lesson.getStudentId().equals(fromUserId) ? lesson.getTutorId() : lesson.getStudentId();
         if (request.getRating().compareTo(BigDecimal.ONE) < 0 || request.getRating().compareTo(new BigDecimal("5")) > 0) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_RATING", "Rating must be between 1 and 5");
+        }
+        if (ratingDao.findByLessonAndFromUser(lessonId, fromUserId).isPresent()) {
+            throw new AppException(HttpStatus.CONFLICT, "ALREADY_RATED", "Lesson already rated by this user");
         }
         try {
             ratingDao.create(RatingEntity.builder()

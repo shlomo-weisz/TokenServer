@@ -11,6 +11,8 @@ import com.tokenlearn.server.dao.UserDao;
 import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.LessonRequestEntity;
 import com.tokenlearn.server.domain.OutboxEventEntity;
+import com.tokenlearn.server.domain.RatingEntity;
+import com.tokenlearn.server.domain.UserEntity;
 import com.tokenlearn.server.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,9 @@ class LessonServiceTest {
     private LessonDao lessonDao;
     private LessonRequestDao lessonRequestDao;
     private OutboxDao outboxDao;
+    private UserDao userDao;
+    private CourseDao courseDao;
+    private RatingDao ratingDao;
     private LessonService lessonService;
 
     @BeforeEach
@@ -43,10 +48,10 @@ class LessonServiceTest {
         lessonDao = mock(LessonDao.class);
         lessonRequestDao = mock(LessonRequestDao.class);
         outboxDao = mock(OutboxDao.class);
-        UserDao userDao = mock(UserDao.class);
-        CourseDao courseDao = mock(CourseDao.class);
+        userDao = mock(UserDao.class);
+        courseDao = mock(CourseDao.class);
         TokenTransactionDao tokenTransactionDao = mock(TokenTransactionDao.class);
-        RatingDao ratingDao = mock(RatingDao.class);
+        ratingDao = mock(RatingDao.class);
         NotificationService notificationService = mock(NotificationService.class);
 
         lessonService = new LessonService(
@@ -118,6 +123,22 @@ class LessonServiceTest {
     }
 
     @Test
+    void cancelLessonFailsAfterLessonEnd() {
+        LocalDateTime start = LocalDateTime.now().minusHours(2);
+        LocalDateTime end = LocalDateTime.now().minusMinutes(5);
+        LessonEntity lesson = scheduledLesson(801, 61, 12, 77, start, end);
+
+        when(lessonDao.findById(801)).thenReturn(Optional.of(lesson));
+
+        AppException ex = assertThrows(AppException.class, () -> lessonService.cancelLesson(801, 12, "Too late"));
+
+        assertEquals("LESSON_ALREADY_ENDED", ex.getCode());
+        verify(lessonRequestDao, never()).findById(any());
+        verify(lessonDao, never()).updateStatus(any(), anyString());
+        verify(outboxDao, never()).create(any());
+    }
+
+    @Test
     void completeLessonReturnsCompletedPayloadIfAlreadyCompletedDuringRace() {
         LocalDateTime end = LocalDateTime.now().minusMinutes(1);
         LessonEntity lesson = scheduledLesson(701, 91, 19, 28, end.minusHours(1), end);
@@ -151,6 +172,51 @@ class LessonServiceTest {
         verify(outboxDao, never()).create(any());
     }
 
+    @Test
+    void detailsReturnsExistingUserRating() {
+        LocalDateTime start = LocalDateTime.now().minusHours(2);
+        LocalDateTime end = LocalDateTime.now().minusHours(1);
+        LessonEntity lesson = LessonEntity.builder()
+                .lessonId(901)
+                .requestId(71)
+                .studentId(12)
+                .tutorId(77)
+                .courseId(null)
+                .tokenCost(new BigDecimal("1.00"))
+                .startTime(start)
+                .endTime(end)
+                .status("COMPLETED")
+                .updatedAt(end)
+                .build();
+        LessonRequestEntity request = LessonRequestEntity.builder()
+                .requestId(71)
+                .message("Need help with homework")
+                .build();
+        RatingEntity existingRating = RatingEntity.builder()
+                .ratingId(33)
+                .lessonId(901)
+                .fromUserId(12)
+                .toUserId(77)
+                .score(new BigDecimal("4.50"))
+                .comment("Very clear explanations")
+                .createdAt(end.plusMinutes(10))
+                .build();
+
+        when(lessonDao.findById(901)).thenReturn(Optional.of(lesson));
+        when(lessonRequestDao.findById(71)).thenReturn(Optional.of(request));
+        when(userDao.findById(12)).thenReturn(Optional.of(user(12, "Dana", "Student")));
+        when(userDao.findById(77)).thenReturn(Optional.of(user(77, "Ron", "Tutor")));
+        when(ratingDao.findByLessonAndFromUser(901, 12)).thenReturn(Optional.of(existingRating));
+
+        Map<String, Object> result = lessonService.details(901, 12);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> myRating = (Map<String, Object>) result.get("myRating");
+        assertEquals(end.plusMinutes(10), result.get("ratedAt"));
+        assertEquals(new BigDecimal("4.50"), myRating.get("rating"));
+        assertEquals("Very clear explanations", myRating.get("comment"));
+    }
+
     private LessonEntity scheduledLesson(
             Integer lessonId,
             Integer requestId,
@@ -168,6 +234,14 @@ class LessonServiceTest {
                 .endTime(endTime)
                 .status("SCHEDULED")
                 .updatedAt(startTime)
+                .build();
+    }
+
+    private UserEntity user(Integer userId, String firstName, String lastName) {
+        return UserEntity.builder()
+                .userId(userId)
+                .firstName(firstName)
+                .lastName(lastName)
                 .build();
     }
 }
