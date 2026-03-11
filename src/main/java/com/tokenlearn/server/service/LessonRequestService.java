@@ -221,8 +221,13 @@ public class LessonRequestService {
                 .forEach(this::expirePendingRequest);
     }
 
+    @Transactional
     public List<Map<String, Object>> listForStudent(Integer studentId, String status) {
-        return lessonRequestDao.findByStudent(studentId, normalizeStatus(status)).stream().map(req -> {
+        String normalizedStatus = normalizeStatus(status);
+        return lessonRequestDao.findByStudent(studentId, normalizedStatus).stream()
+                .map(this::refreshExpiredStateForListing)
+                .filter(req -> matchesStatusFilter(req, normalizedStatus))
+                .map(req -> {
             UserEntity tutor = userDao.findById(req.getTutorId()).orElse(null);
             String tutorName = tutor == null ? "" : tutor.getFirstName() + " " + tutor.getLastName();
             BigDecimal tutorRating = tutorDao.ratingForTutor(req.getTutorId());
@@ -236,14 +241,20 @@ public class LessonRequestService {
             out.put("requestedSlot", slotMap(req));
             out.put("message", req.getMessage() == null ? "" : req.getMessage());
             out.put("status", req.getStatus().toLowerCase());
+            out.put("rejectionReason", req.getRejectionMessage());
             out.put("requestedAt", req.getCreatedAt());
             out.put("lessonDateTime", req.getSpecificStartTime());
             return out;
         }).toList();
     }
 
+    @Transactional
     public List<Map<String, Object>> listForTutor(Integer tutorId, String status) {
-        return lessonRequestDao.findByTutor(tutorId, normalizeStatus(status)).stream().map(req -> {
+        String normalizedStatus = normalizeStatus(status);
+        return lessonRequestDao.findByTutor(tutorId, normalizedStatus).stream()
+                .map(this::refreshExpiredStateForListing)
+                .filter(req -> matchesStatusFilter(req, normalizedStatus))
+                .map(req -> {
             UserEntity student = userDao.findById(req.getStudentId()).orElse(null);
             String studentName = student == null ? "" : student.getFirstName() + " " + student.getLastName();
             CourseEntity course = findCourse(req.getCourseId());
@@ -255,6 +266,7 @@ public class LessonRequestService {
             out.put("requestedSlot", slotMap(req));
             out.put("message", req.getMessage() == null ? "" : req.getMessage());
             out.put("status", req.getStatus().toLowerCase());
+            out.put("rejectionReason", req.getRejectionMessage());
             out.put("requestedAt", req.getCreatedAt());
             out.put("lessonDateTime", req.getSpecificStartTime());
             return out;
@@ -353,6 +365,21 @@ public class LessonRequestService {
 
     private String normalizeStatus(String status) {
         return status == null || status.isBlank() ? null : status.toUpperCase();
+    }
+
+    private LessonRequestEntity refreshExpiredStateForListing(LessonRequestEntity req) {
+        if (!isPendingAndExpired(req)) {
+            return req;
+        }
+        expirePendingRequest(req);
+        return lessonRequestDao.findById(req.getRequestId()).orElseGet(() -> {
+            req.setStatus("EXPIRED");
+            return req;
+        });
+    }
+
+    private boolean matchesStatusFilter(LessonRequestEntity req, String normalizedStatus) {
+        return normalizedStatus == null || normalizedStatus.equalsIgnoreCase(req.getStatus());
     }
 
     private void expireIfNeeded(LessonRequestEntity req) {

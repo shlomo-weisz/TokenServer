@@ -15,11 +15,13 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,6 +30,7 @@ import static org.mockito.Mockito.when;
 class LessonRequestServiceTest {
     private LessonRequestDao lessonRequestDao;
     private UserDao userDao;
+    private TutorDao tutorDao;
     private TokenTransactionDao tokenTransactionDao;
     private LessonDao lessonDao;
     private NotificationService notificationService;
@@ -38,7 +41,7 @@ class LessonRequestServiceTest {
         lessonRequestDao = mock(LessonRequestDao.class);
         userDao = mock(UserDao.class);
         CourseDao courseDao = mock(CourseDao.class);
-        TutorDao tutorDao = mock(TutorDao.class);
+        tutorDao = mock(TutorDao.class);
         tokenTransactionDao = mock(TokenTransactionDao.class);
         lessonDao = mock(LessonDao.class);
         notificationService = mock(NotificationService.class);
@@ -88,16 +91,58 @@ class LessonRequestServiceTest {
         verify(notificationService, never()).createLessonRequestApprovedNotification(any(), any(), any());
     }
 
+    @Test
+    void listForTutorPendingAutoExpiresOldRequestsAndOmitsThemFromPendingResults() {
+        LessonRequestEntity expiredRequest = pendingRequest(303, LocalDateTime.now().plusHours(3));
+
+        when(lessonRequestDao.findByTutor(99, "PENDING")).thenReturn(List.of(expiredRequest));
+        when(lessonRequestDao.transitionStatus(303, "PENDING", "EXPIRED")).thenReturn(1);
+        when(userDao.refundTokens(11, new BigDecimal("3.00"))).thenReturn(true);
+        when(lessonRequestDao.findById(303)).thenReturn(Optional.of(expiredRequestWithStatus(303, "EXPIRED")));
+
+        List<Map<String, Object>> result = service.listForTutor(99, "pending");
+
+        assertEquals(0, result.size());
+        verify(lessonRequestDao).transitionStatus(303, "PENDING", "EXPIRED");
+        verify(userDao).refundTokens(11, new BigDecimal("3.00"));
+        verify(tokenTransactionDao).create(any(TokenTransactionEntity.class));
+    }
+
+    @Test
+    void listForStudentAllStatusesReturnsExpiredRequestsAfterRefreshingState() {
+        LessonRequestEntity expiredRequest = pendingRequest(404, LocalDateTime.now().plusHours(1));
+
+        when(lessonRequestDao.findByStudent(11, null)).thenReturn(List.of(expiredRequest));
+        when(lessonRequestDao.transitionStatus(404, "PENDING", "EXPIRED")).thenReturn(1);
+        when(userDao.refundTokens(11, new BigDecimal("3.00"))).thenReturn(true);
+        when(lessonRequestDao.findById(404)).thenReturn(Optional.of(expiredRequestWithStatus(404, "EXPIRED")));
+        when(tutorDao.ratingForTutor(eq(99))).thenReturn(BigDecimal.ZERO);
+
+        List<Map<String, Object>> result = service.listForStudent(11, null);
+
+        assertEquals(1, result.size());
+        assertEquals("expired", result.get(0).get("status"));
+        verify(lessonRequestDao).transitionStatus(404, "PENDING", "EXPIRED");
+        verify(userDao).refundTokens(11, new BigDecimal("3.00"));
+        verify(tokenTransactionDao).create(any(TokenTransactionEntity.class));
+    }
+
     private LessonRequestEntity pendingRequest(Integer requestId, LocalDateTime specificStartTime) {
         return LessonRequestEntity.builder()
                 .requestId(requestId)
                 .studentId(11)
                 .tutorId(99)
-                .courseId(7)
+                .courseId(null)
                 .tokenCost(new BigDecimal("3.00"))
                 .status("PENDING")
                 .specificStartTime(specificStartTime)
                 .specificEndTime(specificStartTime.plusHours(1))
                 .build();
+    }
+
+    private LessonRequestEntity expiredRequestWithStatus(Integer requestId, String status) {
+        LessonRequestEntity entity = pendingRequest(requestId, LocalDateTime.now().plusHours(1));
+        entity.setStatus(status);
+        return entity;
     }
 }
