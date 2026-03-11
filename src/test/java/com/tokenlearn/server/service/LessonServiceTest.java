@@ -213,8 +213,86 @@ class LessonServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> myRating = (Map<String, Object>) result.get("myRating");
         assertEquals(end.plusMinutes(10), result.get("ratedAt"));
+        assertEquals(end.plusMinutes(10).plusHours(1), result.get("ratingEditableUntil"));
         assertEquals(new BigDecimal("4.50"), myRating.get("rating"));
         assertEquals("Very clear explanations", myRating.get("comment"));
+    }
+
+    @Test
+    void updateLessonRatingSucceedsWithinOneHour() {
+        LocalDateTime start = LocalDateTime.now().minusHours(2);
+        LocalDateTime end = LocalDateTime.now().minusHours(1);
+        LessonEntity lesson = LessonEntity.builder()
+                .lessonId(951)
+                .requestId(88)
+                .studentId(12)
+                .tutorId(77)
+                .tokenCost(new BigDecimal("1.00"))
+                .startTime(start)
+                .endTime(end)
+                .status("COMPLETED")
+                .updatedAt(end)
+                .build();
+        RatingEntity existingRating = RatingEntity.builder()
+                .ratingId(45)
+                .lessonId(951)
+                .fromUserId(12)
+                .toUserId(77)
+                .score(new BigDecimal("4.00"))
+                .comment("Old")
+                .createdAt(LocalDateTime.now().minusMinutes(20))
+                .build();
+        com.tokenlearn.server.dto.RateLessonRequest request = new com.tokenlearn.server.dto.RateLessonRequest();
+        request.setRating(new BigDecimal("5.00"));
+        request.setComment("Updated");
+
+        when(lessonDao.findById(951)).thenReturn(Optional.of(lesson));
+        when(ratingDao.findByLessonAndFromUser(951, 12)).thenReturn(Optional.of(existingRating));
+        when(ratingDao.update(45, new BigDecimal("5.00"), "Updated")).thenReturn(1);
+
+        Map<String, Object> result = lessonService.updateLessonRating(951, 12, request);
+
+        assertEquals(new BigDecimal("5.00"), result.get("rating"));
+        assertEquals("Updated", result.get("comment"));
+        assertEquals(existingRating.getCreatedAt(), result.get("ratedAt"));
+        assertEquals(existingRating.getCreatedAt().plusHours(1), result.get("ratingEditableUntil"));
+    }
+
+    @Test
+    void updateLessonRatingFailsAfterOneHourWindow() {
+        LocalDateTime start = LocalDateTime.now().minusHours(4);
+        LocalDateTime end = LocalDateTime.now().minusHours(3);
+        LessonEntity lesson = LessonEntity.builder()
+                .lessonId(952)
+                .requestId(89)
+                .studentId(12)
+                .tutorId(77)
+                .tokenCost(new BigDecimal("1.00"))
+                .startTime(start)
+                .endTime(end)
+                .status("COMPLETED")
+                .updatedAt(end)
+                .build();
+        RatingEntity existingRating = RatingEntity.builder()
+                .ratingId(46)
+                .lessonId(952)
+                .fromUserId(12)
+                .toUserId(77)
+                .score(new BigDecimal("4.00"))
+                .comment("Old")
+                .createdAt(LocalDateTime.now().minusHours(2))
+                .build();
+        com.tokenlearn.server.dto.RateLessonRequest request = new com.tokenlearn.server.dto.RateLessonRequest();
+        request.setRating(new BigDecimal("5.00"));
+        request.setComment("Updated");
+
+        when(lessonDao.findById(952)).thenReturn(Optional.of(lesson));
+        when(ratingDao.findByLessonAndFromUser(952, 12)).thenReturn(Optional.of(existingRating));
+
+        AppException ex = assertThrows(AppException.class, () -> lessonService.updateLessonRating(952, 12, request));
+
+        assertEquals("RATING_EDIT_WINDOW_EXPIRED", ex.getCode());
+        verify(ratingDao, never()).update(any(), any(), any());
     }
 
     private LessonEntity scheduledLesson(

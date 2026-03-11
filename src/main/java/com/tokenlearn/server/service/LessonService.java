@@ -181,6 +181,7 @@ public class LessonService {
         result.put("message", request.getMessage());
         ratingDao.findByLessonAndFromUser(lessonId, userId).ifPresent(rating -> {
             result.put("ratedAt", rating.getCreatedAt());
+            result.put("ratingEditableUntil", rating.getCreatedAt().plusHours(1));
             result.put("myRating", Map.of(
                     "rating", rating.getScore(),
                     "comment", rating.getComment() == null ? "" : rating.getComment()));
@@ -271,7 +272,42 @@ public class LessonService {
                 "lessonId", lessonId,
                 "rating", request.getRating(),
                 "comment", request.getComment() == null ? "" : request.getComment(),
-                "ratedAt", LocalDateTime.now());
+                "ratedAt", LocalDateTime.now(),
+                "ratingEditableUntil", LocalDateTime.now().plusHours(1));
+    }
+
+    @Transactional
+    public Map<String, Object> updateLessonRating(Integer lessonId, Integer fromUserId, RateLessonRequest request) {
+        LessonEntity lesson = requireLesson(lessonId);
+        if (!"COMPLETED".equals(lesson.getStatus())) {
+            throw new AppException(HttpStatus.CONFLICT, "INVALID_STATE", "Only completed lessons can be rated");
+        }
+        if (!isParticipant(lesson, fromUserId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only participants can rate lesson");
+        }
+        if (request.getRating().compareTo(BigDecimal.ONE) < 0 || request.getRating().compareTo(new BigDecimal("5")) > 0) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_RATING", "Rating must be between 1 and 5");
+        }
+
+        RatingEntity existingRating = ratingDao.findByLessonAndFromUser(lessonId, fromUserId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Rating not found"));
+        LocalDateTime editableUntil = existingRating.getCreatedAt().plusHours(1);
+        if (LocalDateTime.now().isAfter(editableUntil)) {
+            throw new AppException(HttpStatus.CONFLICT, "RATING_EDIT_WINDOW_EXPIRED", "Rating can only be edited within one hour");
+        }
+
+        int updated = ratingDao.update(existingRating.getRatingId(), request.getRating(), request.getComment());
+        if (updated != 1) {
+            throw new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Rating not found");
+        }
+
+        return Map.of(
+                "lessonId", lessonId,
+                "rating", request.getRating(),
+                "comment", request.getComment() == null ? "" : request.getComment(),
+                "ratedAt", existingRating.getCreatedAt(),
+                "ratingEditableUntil", editableUntil,
+                "updatedAt", LocalDateTime.now());
     }
 
     @Transactional

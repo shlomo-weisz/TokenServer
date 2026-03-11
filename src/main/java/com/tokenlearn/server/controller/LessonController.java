@@ -91,6 +91,15 @@ public class LessonController {
         return ok(lessonService.rateLesson(lessonId, userId, request));
     }
 
+    @PutMapping("/{lessonId}/rate")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateRate(
+            Authentication authentication,
+            @PathVariable Integer lessonId,
+            @Valid @RequestBody RateLessonRequest request) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(lessonService.updateLessonRating(lessonId, userId, request));
+    }
+
     @PostMapping("/{lessonId}/messages")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendMessage(
             Authentication authentication,
