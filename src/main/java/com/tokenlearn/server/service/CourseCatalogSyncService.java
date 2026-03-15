@@ -16,6 +16,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+/**
+ * Imports the course catalog JSON on application startup.
+ *
+ * <p>The sync is optional and can be disabled for tests or environments that do
+ * not ship the catalog file.
+ */
 @Service
 public class CourseCatalogSyncService implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(CourseCatalogSyncService.class);

@@ -21,6 +21,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Verifies Google ID tokens against the configured client ids.
+ *
+ * <p>The verifier prefers local JWKS validation and falls back to Google's
+ * {@code tokeninfo} endpoint when decoding cannot be completed locally.
+ */
 @Component
 public class GoogleTokenVerifier {
     private static final String GOOGLE_ISSUER = "https://accounts.google.com";

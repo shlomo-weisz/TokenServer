@@ -31,6 +31,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Manages lessons after a request has been approved.
+ *
+ * <p>Lesson completion is intentionally split into two steps: the lesson is
+ * marked complete in the main transaction, then a settlement event is written to
+ * the outbox so token transfer can be retried asynchronously.
+ */
 @Service
 public class LessonService {
     private final LessonDao lessonDao;
@@ -383,6 +390,8 @@ public class LessonService {
         lessonRequestDao.updateStatus(request.getRequestId(), "COMPLETED");
 
         String messageId = UUID.randomUUID().toString();
+        // Settlement is published through the outbox instead of happening inline
+        // so broker outages do not roll back lesson completion.
         Map<String, Object> payload = Map.of(
                 "lessonId", lesson.getLessonId(),
                 "requestId", request.getRequestId(),

@@ -34,6 +34,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Owns the lifecycle of lesson requests and the token reservation tied to them.
+ *
+ * <p>Creating a request locks student tokens. Rejecting, cancelling, or expiring
+ * a request releases the same amount back to the student's available balance.
+ */
 @Service
 public class LessonRequestService {
     private final LessonRequestDao lessonRequestDao;
@@ -94,6 +100,8 @@ public class LessonRequestService {
         Integer requestId = lessonRequestDao.create(entity);
         entity.setRequestId(requestId);
 
+        // The request row is created before reserving funds so the reservation
+        // transaction can reference the generated request id.
         if (!userDao.reserveTokens(studentId, request.getTokenCost())) {
             throw new AppException(HttpStatus.PAYMENT_REQUIRED, "INSUFFICIENT_BALANCE", "Insufficient available balance");
         }
@@ -216,6 +224,8 @@ public class LessonRequestService {
             initialDelayString = "${app.lesson-request-expiration-initial-delay-ms:60000}")
     @Transactional
     public void expirePendingRequests() {
+        // Requests become invalid once there is no longer enough approval lead
+        // time before the requested lesson start.
         LocalDateTime latestAllowedStartTime = approvalExpiryCutoff(LocalDateTime.now());
         lessonRequestDao.findPendingExpiringBefore(latestAllowedStartTime)
                 .forEach(this::expirePendingRequest);

@@ -18,6 +18,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+/**
+ * Central Spring Security configuration.
+ *
+ * <p>The API is stateless: public auth and health routes are open, while every
+ * other endpoint must provide a Bearer token parsed by
+ * {@link JwtAuthenticationFilter}.
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -60,6 +67,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
+        // Keep local development and temporary preview tunnels working without
+        // opening CORS to arbitrary origins.
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
                 "http://localhost:5173",

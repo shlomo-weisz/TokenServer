@@ -18,6 +18,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Authentication and account bootstrap workflow.
+ *
+ * <p>This service owns password login, email/password registration, password
+ * reset, JWT issuance, and Google sign-in. Welcome bonuses are persisted as
+ * token transactions so balance changes stay auditable.
+ */
 @Service
 public class AuthService {
     private final UserDao userDao;
@@ -77,6 +84,8 @@ public class AuthService {
 
         int bonus = 0;
         if (isFirstFifty) {
+            // The welcome bonus updates both the balance and the transaction
+            // ledger so later balance history stays explainable.
             bonus = welcomeBonusAmount;
             userDao.addAvailable(userId, BigDecimal.valueOf(welcomeBonusAmount));
             tokenTransactionDao.create(TokenTransactionEntity.builder()
@@ -197,6 +206,8 @@ public class AuthService {
             created.setUserId(id);
 
             if (isFirstFifty) {
+                // Google sign-up follows the same bonus path as password-based
+                // registration so both onboarding paths stay consistent.
                 bonus = welcomeBonusAmount;
                 userDao.addAvailable(id, BigDecimal.valueOf(welcomeBonusAmount));
                 tokenTransactionDao.create(TokenTransactionEntity.builder()

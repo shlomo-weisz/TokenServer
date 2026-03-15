@@ -11,6 +11,12 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+/**
+ * Creates and validates application JWTs.
+ *
+ * <p>The token subject is the internal user id, which keeps later request
+ * authentication lightweight.
+ */
 @Component
 public class JwtProvider {
     @Value("${jwt.secret}")

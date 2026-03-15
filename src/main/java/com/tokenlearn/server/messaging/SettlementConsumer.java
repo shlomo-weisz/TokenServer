@@ -5,6 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * JMS consumer for settlement events emitted by the transactional outbox.
+ */
 @Slf4j
 @Component
 public class SettlementConsumer {

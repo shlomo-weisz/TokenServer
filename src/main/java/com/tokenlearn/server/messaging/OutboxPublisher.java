@@ -9,6 +9,12 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Publishes pending outbox rows to ActiveMQ Artemis.
+ *
+ * <p>Failed rows are reset by a second scheduler so transient broker failures can
+ * be retried without modifying the original business transaction.
+ */
 @Slf4j
 @Component
 public class OutboxPublisher {
@@ -27,6 +33,8 @@ public class OutboxPublisher {
         List<OutboxEventEntity> events = outboxDao.findNewBatch();
         for (OutboxEventEntity event : events) {
             try {
+                // The outbox is generic, but today lesson completion is the
+                // event that fans out to the settlement queue.
                 if ("LESSON_COMPLETED".equals(event.getEventType())) {
                     jmsTemplate.convertAndSend(SETTLEMENT_QUEUE, event.getPayloadJson());
                 }

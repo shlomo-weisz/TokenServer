@@ -13,6 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
+/**
+ * Finalizes token movement for completed lessons after the JMS round-trip.
+ *
+ * <p>Idempotency is handled by checking whether a settlement transaction already
+ * exists for the lesson request before moving balances again.
+ */
 @Slf4j
 @Service
 public class SettlementService {
@@ -39,6 +45,8 @@ public class SettlementService {
             BigDecimal amount = payload.get("amount").decimalValue();
             String messageId = payload.get("messageId").asText();
 
+            // Retries are expected, so settlement must be safe to execute more
+            // than once for the same request.
             if (tokenTransactionDao.settlementExists(requestId)) {
                 log.info("Settlement already exists for request {}", requestId);
                 return;

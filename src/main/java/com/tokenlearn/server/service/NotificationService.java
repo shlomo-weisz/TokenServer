@@ -17,6 +17,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Persists inbox notifications consumed by the client.
+ *
+ * <p>The notification table acts as a durable inbox for request status changes,
+ * reminders, and lesson chat messages.
+ */
 @Service
 public class NotificationService {
     public static final String EVENT_LESSON_REQUEST_CREATED = "LESSON_REQUEST_CREATED";
@@ -116,6 +122,8 @@ public class NotificationService {
                 .isRead(false)
                 .build());
 
+        // Store a read copy for the sender so the inbox can render a full thread
+        // without needing a separate message table.
         notificationDao.create(NotificationEntity.builder()
                 .userId(senderId)
                 .eventType(EVENT_LESSON_MESSAGE)

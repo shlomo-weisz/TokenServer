@@ -13,6 +13,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 
+/**
+ * Extracts the Bearer token and populates the Spring Security context.
+ *
+ * <p>Authorization is intentionally coarse here: the filter authenticates the
+ * user id, while services enforce admin-only operations where needed.
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtProvider jwtProvider;

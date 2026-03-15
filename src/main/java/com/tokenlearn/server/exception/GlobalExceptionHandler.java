@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
+/**
+ * Converts exceptions into the shared API response envelope.
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
