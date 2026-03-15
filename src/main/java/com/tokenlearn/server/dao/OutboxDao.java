@@ -11,6 +11,9 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Persists and transitions transactional outbox events for asynchronous publication.
+ */
 @Repository
 public class OutboxDao {
     private final NamedParameterJdbcTemplate jdbc;

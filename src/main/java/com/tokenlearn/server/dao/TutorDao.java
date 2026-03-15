@@ -8,6 +8,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Search-oriented read model for tutor discovery, recommendation, and rating lookups.
+ */
 @Repository
 public class TutorDao {
     private final NamedParameterJdbcTemplate jdbc;

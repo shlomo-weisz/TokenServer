@@ -13,6 +13,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Persists lesson ratings and exposes the aggregate queries used in tutor and admin views.
+ */
 @Repository
 public class RatingDao {
     private final NamedParameterJdbcTemplate jdbc;

@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalTime;
 
+/**
+ * Persistence model for recurring availability slots attached to a user acting as a teacher or student.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

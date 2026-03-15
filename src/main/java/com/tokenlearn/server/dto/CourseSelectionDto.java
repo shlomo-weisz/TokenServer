@@ -7,6 +7,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Flexible course reference used in profile updates and course-selection UIs.
+ */
 @Data
 public class CourseSelectionDto {
     @Positive

@@ -9,6 +9,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Provides course catalog queries and maps persisted course rows into API-friendly payloads.
+ */
 @Service
 public class CourseService {
     private final CourseDao courseDao;

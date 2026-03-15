@@ -8,6 +8,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Request used during password recovery to validate the secret answer for an email address.
+ */
 @Data
 public class VerifySecretAnswerRequest {
     @Email

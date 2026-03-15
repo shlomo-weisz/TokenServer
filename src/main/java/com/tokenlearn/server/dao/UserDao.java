@@ -13,6 +13,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * User persistence plus balance mutation queries used by authentication, profile, and settlement workflows.
+ */
 @Repository
 public class UserDao {
     private final NamedParameterJdbcTemplate jdbc;

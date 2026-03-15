@@ -67,13 +67,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Keep local development and temporary preview tunnels working without
-        // opening CORS to arbitrary origins.
+        // Keep local development and approved deployed frontends working
+        // without opening CORS to arbitrary origins.
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "http://localhost:5174",
-                "https://*.trycloudflare.com"));
+                "https://*.trycloudflare.com",
+                "https://token-learn.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

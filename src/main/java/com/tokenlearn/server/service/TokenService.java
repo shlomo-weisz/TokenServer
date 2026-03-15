@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Handles wallet-style token operations and builds transaction history enriched with lesson context.
+ */
 @Service
 public class TokenService {
     private final UserDao userDao;

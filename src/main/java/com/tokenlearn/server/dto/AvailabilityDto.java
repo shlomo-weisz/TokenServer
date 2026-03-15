@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Availability slot returned to clients after weekday and time normalization.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

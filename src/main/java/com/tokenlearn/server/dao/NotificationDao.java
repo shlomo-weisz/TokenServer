@@ -11,6 +11,9 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Persists inbox notifications and read-tracking operations used by the client notification center.
+ */
 @Repository
 public class NotificationDao {
     private final NamedParameterJdbcTemplate jdbc;

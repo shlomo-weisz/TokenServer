@@ -3,6 +3,9 @@ package com.tokenlearn.server.util;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Normalizes weekday values from supported inputs into the canonical English day names used by the backend.
+ */
 public final class WeekdayUtil {
     private static final Map<String, String> EN_BY_LOWER = Map.of(
             "sunday", "Sunday",

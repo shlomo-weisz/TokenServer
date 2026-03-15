@@ -4,6 +4,9 @@ import com.tokenlearn.server.exception.AppException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 
+/**
+ * Helper methods for extracting the authenticated user identity from Spring Security objects.
+ */
 public final class AuthUtil {
     private AuthUtil() {
     }

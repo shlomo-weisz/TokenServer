@@ -9,6 +9,9 @@ import java.math.BigDecimal;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Admin payload for adjusting a user's available token balance with an audit reason.
+ */
 @Data
 public class UpdateUserTokensRequest {
     @NotNull

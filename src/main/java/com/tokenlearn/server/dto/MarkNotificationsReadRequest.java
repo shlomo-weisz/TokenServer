@@ -6,6 +6,9 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+/**
+ * Request used to mark specific notifications as read; omitting ids means "mark all".
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

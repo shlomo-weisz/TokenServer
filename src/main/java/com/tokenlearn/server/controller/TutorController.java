@@ -18,6 +18,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Tutor discovery endpoints covering recommendations, search, public profiles, and availability.
+ */
 @RestController
 @RequestMapping("/api/tutors")
 public class TutorController {

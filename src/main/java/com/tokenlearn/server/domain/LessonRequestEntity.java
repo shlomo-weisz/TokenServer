@@ -9,6 +9,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+/**
+ * Persisted lesson request, including the requested slot, approval status, and any rejection details.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

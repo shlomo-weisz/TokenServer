@@ -6,6 +6,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Payload for tutor rejection of a lesson request, including optional reason aliases.
+ */
 @Data
 public class RejectLessonRequestInputDto {
     @Size(max = 500)

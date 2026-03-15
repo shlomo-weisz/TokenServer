@@ -18,6 +18,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Endpoints for the scheduled lesson lifecycle, including completion, cancellation, ratings, and lesson messaging.
+ */
 @RestController
 @RequestMapping("/api/lessons")
 public class LessonController {

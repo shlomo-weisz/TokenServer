@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Authentication response containing the issued JWT and a summarized user identity.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

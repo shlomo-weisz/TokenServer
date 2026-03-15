@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * Email-and-password login payload.
+ */
 @Data
 public class AuthLoginRequest {
     @Email

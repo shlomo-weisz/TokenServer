@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Owns user profile retrieval and updates, including course selections, availability normalization, and rating summaries.
+ */
 @Service
 public class UserService {
     private final UserDao userDao;

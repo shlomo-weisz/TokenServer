@@ -7,6 +7,9 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+/**
+ * Stores short-lived password reset tokens and consumes them atomically when a reset is completed.
+ */
 @Repository
 public class PasswordResetDao {
     private final NamedParameterJdbcTemplate jdbc;

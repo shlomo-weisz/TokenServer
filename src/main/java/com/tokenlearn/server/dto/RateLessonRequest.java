@@ -11,6 +11,9 @@ import java.math.BigDecimal;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Payload for creating or updating a lesson rating.
+ */
 @Data
 public class RateLessonRequest {
     @NotNull

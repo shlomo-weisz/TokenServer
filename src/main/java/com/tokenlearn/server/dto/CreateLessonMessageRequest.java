@@ -7,6 +7,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Request body for sending a chat-style message within a scheduled lesson.
+ */
 @Data
 public class CreateLessonMessageRequest {
     @NotBlank(message = "Message is required")

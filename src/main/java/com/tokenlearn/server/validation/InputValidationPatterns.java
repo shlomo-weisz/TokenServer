@@ -1,5 +1,8 @@
 package com.tokenlearn.server.validation;
 
+/**
+ * Centralized regular-expression constants reused by request DTO validation annotations.
+ */
 public final class InputValidationPatterns {
     private InputValidationPatterns() {
     }

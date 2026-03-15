@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Persisted rating left by one lesson participant for the other after lesson completion.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

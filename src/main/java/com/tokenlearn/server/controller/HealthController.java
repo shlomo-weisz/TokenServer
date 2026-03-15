@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * Lightweight health probe endpoint for deployments, uptime checks, and local smoke tests.
+ */
 @RestController
 public class HealthController {
     @GetMapping("/health")

@@ -4,6 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Standard API response envelope returned by every controller method.
+ *
+ * @param <T> response payload type when the request succeeds
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +25,9 @@ public class ApiResponse<T> {
         return new ApiResponse<>(false, null, new ErrorData(code, message));
     }
 
+    /**
+     * Structured error payload included when a request fails.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor

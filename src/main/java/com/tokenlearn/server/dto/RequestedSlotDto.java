@@ -7,6 +7,9 @@ import static com.tokenlearn.server.validation.InputValidationPatterns.TIME_24H;
 import static com.tokenlearn.server.validation.InputValidationPatterns.TIME_OR_ISO_LOCAL_DATETIME;
 import static com.tokenlearn.server.validation.InputValidationPatterns.WEEKDAY_EN_OR_HE;
 
+/**
+ * Structured description of the requested availability window and exact lesson time.
+ */
 @Data
 public class RequestedSlotDto {
     @Pattern(regexp = WEEKDAY_EN_OR_HE, message = "Day must be one of Sunday..Saturday (English or Hebrew)")

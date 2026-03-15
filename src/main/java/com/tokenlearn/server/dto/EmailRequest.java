@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * Minimal request carrying an email address.
+ */
 @Data
 public class EmailRequest {
     @Email

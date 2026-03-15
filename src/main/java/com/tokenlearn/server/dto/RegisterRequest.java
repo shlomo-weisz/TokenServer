@@ -10,6 +10,9 @@ import static com.tokenlearn.server.validation.InputValidationPatterns.NAME;
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 import static com.tokenlearn.server.validation.InputValidationPatterns.PHONE;
 
+/**
+ * Registration payload for password-based account creation and recovery-question setup.
+ */
 @Data
 public class RegisterRequest {
     @Email

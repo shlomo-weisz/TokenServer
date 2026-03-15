@@ -12,6 +12,9 @@ import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_T
 import static com.tokenlearn.server.validation.InputValidationPatterns.PHONE;
 import static com.tokenlearn.server.validation.InputValidationPatterns.URL_HTTP_OR_BLOB;
 
+/**
+ * Payload for admin-managed updates to a user account and moderation flags.
+ */
 @Data
 public class AdminUpdateUserRequest {
     @Email

@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * Persisted transactional outbox event that will be published asynchronously to the message broker.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Persisted scheduled lesson created after a lesson request has been approved.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

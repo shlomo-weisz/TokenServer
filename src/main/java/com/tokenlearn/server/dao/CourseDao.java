@@ -9,6 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Course catalog queries plus persistence helpers for teacher and student course associations.
+ */
 @Repository
 public class CourseDao {
     private final NamedParameterJdbcTemplate jdbc;

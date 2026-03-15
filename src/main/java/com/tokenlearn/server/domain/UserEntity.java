@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Persisted user account state, including profile data, moderation flags, and token wallet balances.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

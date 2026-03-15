@@ -13,6 +13,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Endpoints for creating, reviewing, and cancelling lesson requests before they become scheduled lessons.
+ */
 @RestController
 @RequestMapping("/api/lesson-requests")
 public class LessonRequestController {

@@ -12,6 +12,9 @@ import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_T
 import static com.tokenlearn.server.validation.InputValidationPatterns.PHONE;
 import static com.tokenlearn.server.validation.InputValidationPatterns.URL_HTTP_OR_BLOB;
 
+/**
+ * Payload for editing profile fields, course selections, and availability preferences.
+ */
 @Data
 public class UpdateUserProfileRequest {
     @Size(max = 50)

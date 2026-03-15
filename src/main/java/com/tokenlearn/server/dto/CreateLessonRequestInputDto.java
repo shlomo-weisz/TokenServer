@@ -11,6 +11,9 @@ import java.math.BigDecimal;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Payload for creating a lesson request with tutor, course, requested slot, and token cost.
+ */
 @Data
 public class CreateLessonRequestInputDto {
     @NotNull

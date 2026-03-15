@@ -7,6 +7,9 @@ import lombok.Data;
 import static com.tokenlearn.server.validation.InputValidationPatterns.TIME_24H;
 import static com.tokenlearn.server.validation.InputValidationPatterns.WEEKDAY_EN_OR_HE;
 
+/**
+ * Availability slot submitted when a user updates profile availability.
+ */
 @Data
 public class AvailabilityInputDto {
     @Positive

@@ -18,6 +18,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Assembles tutor discovery and profile responses from ratings, courses, and availability data.
+ */
 @Service
 public class TutorService {
     private final TutorDao tutorDao;

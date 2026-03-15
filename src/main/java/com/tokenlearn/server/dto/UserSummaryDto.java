@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Compact user identity returned inside authentication and lightweight API responses.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -11,6 +11,9 @@ import java.math.BigDecimal;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Payload for admin edits to an existing lesson rating.
+ */
 @Data
 public class AdminUpdateRatingRequest {
     @NotNull

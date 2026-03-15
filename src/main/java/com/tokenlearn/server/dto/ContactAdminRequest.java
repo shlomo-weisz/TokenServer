@@ -7,6 +7,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Message payload submitted by users when contacting administrators.
+ */
 @Data
 public class ContactAdminRequest {
     @NotBlank

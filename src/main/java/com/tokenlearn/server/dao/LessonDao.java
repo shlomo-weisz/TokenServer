@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Persists lessons and exposes query shapes for user calendars, history, reminders, and admin views.
+ */
 @Repository
 public class LessonDao {
     private final NamedParameterJdbcTemplate jdbc;

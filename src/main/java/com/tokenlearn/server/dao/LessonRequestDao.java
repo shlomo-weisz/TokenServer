@@ -13,6 +13,9 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Persists lesson request state transitions and listing queries for students, tutors, and expiration jobs.
+ */
 @Repository
 public class LessonRequestDao {
     private final NamedParameterJdbcTemplate jdbc;

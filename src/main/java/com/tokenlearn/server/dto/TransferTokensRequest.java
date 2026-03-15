@@ -10,6 +10,9 @@ import java.math.BigDecimal;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Request for transferring tokens between users with optional lesson context and audit reason.
+ */
 @Data
 public class TransferTokensRequest {
     @NotNull

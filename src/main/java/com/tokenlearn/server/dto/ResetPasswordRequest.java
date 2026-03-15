@@ -8,6 +8,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.RESET_TOKEN;
 
+/**
+ * Password reset payload containing email, reset token, and the new password.
+ */
 @Data
 public class ResetPasswordRequest {
     @Email

@@ -9,6 +9,9 @@ import org.springframework.jms.connection.CachingConnectionFactory;
 
 import jakarta.jms.ConnectionFactory;
 
+/**
+ * Creates the JMS connection and listener infrastructure used by the outbox publisher and settlement consumer.
+ */
 @Configuration
 public class JmsConfig {
     @Value("${spring.artemis.broker-url}")

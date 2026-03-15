@@ -11,6 +11,9 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Persists token ledger entries and exposes audit queries for balances, settlements, and history views.
+ */
 @Repository
 public class TokenTransactionDao {
     private final NamedParameterJdbcTemplate jdbc;

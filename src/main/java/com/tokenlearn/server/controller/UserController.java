@@ -13,6 +13,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Endpoints for self-service profile management and public user profile lookups.
+ */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {

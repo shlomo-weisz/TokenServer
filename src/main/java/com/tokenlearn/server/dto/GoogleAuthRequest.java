@@ -7,6 +7,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.GOOGLE_ID_TOKEN;
 
+/**
+ * Request carrying a Google ID token for sign-in.
+ */
 @Data
 public class GoogleAuthRequest {
     @NotBlank

@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Ledger entry that records a token balance movement for audit, reporting, and history views.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

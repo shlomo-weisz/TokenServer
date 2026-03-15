@@ -10,6 +10,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Aggregation and maintenance queries used by the admin dashboard and contact flows.
+ */
 @Repository
 public class AdminDao {
     private final NamedParameterJdbcTemplate jdbc;

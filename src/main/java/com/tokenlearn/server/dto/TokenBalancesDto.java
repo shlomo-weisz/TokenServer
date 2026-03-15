@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+/**
+ * Token wallet breakdown separating total, available, locked, and forecasted balances.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

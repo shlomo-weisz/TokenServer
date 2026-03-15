@@ -6,6 +6,9 @@ import lombok.Data;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Optional cancellation payload carrying a free-text reason for the other participant.
+ */
 @Data
 public class CancelLessonRequest {
     @Size(max = 500)

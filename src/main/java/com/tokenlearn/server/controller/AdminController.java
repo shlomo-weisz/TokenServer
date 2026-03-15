@@ -17,6 +17,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Administrative REST endpoints for moderation, reporting, and manual account maintenance.
+ */
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {

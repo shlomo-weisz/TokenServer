@@ -3,6 +3,9 @@ package com.tokenlearn.server.util;
 import com.tokenlearn.server.domain.CourseEntity;
 import com.tokenlearn.server.dto.SimpleCourseDto;
 
+/**
+ * Builds consistent course display labels from catalog numbers and localized course names.
+ */
 public final class CourseLabelUtil {
     private CourseLabelUtil() {
     }

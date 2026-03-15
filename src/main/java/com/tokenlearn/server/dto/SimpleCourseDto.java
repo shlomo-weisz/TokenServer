@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Compact course descriptor embedded inside larger API payloads.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

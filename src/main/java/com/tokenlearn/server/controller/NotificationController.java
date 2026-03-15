@@ -18,6 +18,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Notification inbox endpoints for listing unread items, counting badges, and marking items as read.
+ */
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {

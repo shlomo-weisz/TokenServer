@@ -9,6 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalTime;
 import java.util.List;
 
+/**
+ * Persists availability slots by user and role and replaces the slot set atomically when profiles are updated.
+ */
 @Repository
 public class AvailabilityDao {
     private final NamedParameterJdbcTemplate jdbc;

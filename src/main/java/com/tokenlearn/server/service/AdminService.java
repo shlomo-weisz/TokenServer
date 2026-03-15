@@ -27,6 +27,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Coordinates admin-only workflows such as dashboards, moderation, user maintenance, and manual token adjustments.
+ */
 @Service
 public class AdminService {
     private final UserDao userDao;

@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.List;
 
+/**
+ * Rich user profile response returned for self views and public profile lookups.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

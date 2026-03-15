@@ -14,6 +14,9 @@ import java.util.Map;
 import static com.tokenlearn.server.controller.ApiResponses.created;
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Authentication endpoints for login, registration, password recovery, and token verification.
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {

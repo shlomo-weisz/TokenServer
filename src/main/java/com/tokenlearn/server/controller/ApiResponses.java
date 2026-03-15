@@ -4,6 +4,9 @@ import com.tokenlearn.server.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+/**
+ * Small factory helpers for returning the shared {@link ApiResponse} envelope with the right HTTP status.
+ */
 public final class ApiResponses {
     private ApiResponses() {
     }

@@ -11,6 +11,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.validation.InputValidationPatterns.NO_HTML_TAGS;
 
+/**
+ * Request to credit a user's wallet, including placeholder payment metadata for future integrations.
+ */
 @Data
 public class BuyTokensRequest {
     @NotNull

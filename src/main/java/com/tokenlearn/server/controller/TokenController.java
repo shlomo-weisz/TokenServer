@@ -14,6 +14,9 @@ import java.util.Map;
 
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
+/**
+ * Endpoints for token wallet balance, purchases, peer transfers, and transaction history.
+ */
 @RestController
 @RequestMapping("/api/tokens")
 public class TokenController {

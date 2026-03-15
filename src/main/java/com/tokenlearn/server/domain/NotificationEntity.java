@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * Persisted inbox notification rendered by the client for request updates, reminders, and lesson messages.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

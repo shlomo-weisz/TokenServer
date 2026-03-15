@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Persistence model for catalog courses and user course associations.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
