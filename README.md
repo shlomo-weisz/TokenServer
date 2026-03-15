@@ -43,6 +43,7 @@ server/
   src/main/resources/
     application.properties
     db/migration/
+  .env.example
   Dockerfile
   docker-compose.yml
   README.md
@@ -79,6 +80,32 @@ Notes:
 - In Docker, the compose file mounts the catalog file to `/app/openu_all_courses.json`.
 - If you do not want catalog sync in an environment, set `APP_COURSE_CATALOG_ENABLED=false`.
 - If `google.client-id` is empty, `/api/auth/google` will return a configuration error.
+
+### Docker Compose secret handling
+
+The Docker Compose setup no longer stores secrets directly inside
+`docker-compose.yml`.
+
+Use this flow:
+
+1. Copy `.env.example` to `.env`
+2. Put real secrets only in `.env`
+3. Keep `.env` out of Git
+
+Example:
+
+```bash
+cp .env.example .env
+```
+
+Variables loaded from `.env` include:
+
+- `TOKENLEARN_DB_PASSWORD`
+- `TOKENLEARN_ARTEMIS_PASSWORD`
+- `TOKENLEARN_JWT_SECRET`
+- `TOKENLEARN_GOOGLE_CLIENT_ID`
+
+`docker compose` loads `.env` automatically from the `server/` directory.
 
 ## Local Development
 
@@ -140,31 +167,44 @@ Expected response:
 
 This starts SQL Server, Artemis, and the backend together.
 
-1. Start the stack:
+1. Create your local `.env` from the template:
+
+```bash
+cp .env.example .env
+```
+
+2. Edit `.env` and replace at least these values:
+
+- `TOKENLEARN_DB_PASSWORD`
+- `TOKENLEARN_ARTEMIS_PASSWORD`
+- `TOKENLEARN_JWT_SECRET`
+- `TOKENLEARN_GOOGLE_CLIENT_ID` if Google login is enabled
+
+3. Start the stack:
 
 ```bash
 docker compose up -d --build
 ```
 
-2. Wait for SQL Server to be ready:
+4. Wait for SQL Server to be ready:
 
 ```bash
 docker logs -f tokenlearn-sqlserver
 ```
 
-3. Create the database:
+5. Create the database using the password from `.env`:
 
 ```bash
-docker exec tokenlearn-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "YourStrong!Passw0rd" -Q "IF DB_ID('tokenlearn') IS NULL CREATE DATABASE tokenlearn;"
+docker exec tokenlearn-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "YOUR_DB_PASSWORD_FROM_ENV" -Q "IF DB_ID('tokenlearn') IS NULL CREATE DATABASE tokenlearn;"
 ```
 
-4. Restart the backend so it reconnects after the database exists:
+6. Restart the backend so it reconnects after the database exists:
 
 ```bash
 docker compose restart tokenlearn-server
 ```
 
-5. Verify health:
+7. Verify health:
 
 ```bash
 curl http://localhost:8080/health
@@ -180,9 +220,9 @@ curl http://localhost:8161
 
 Artemis web console defaults:
 
-- URL: `http://localhost:8161`
-- username: `admin`
-- password: `admin`
+- URL: `http://localhost:${TOKENLEARN_ARTEMIS_WEB_PORT}`
+- username: value of `TOKENLEARN_ARTEMIS_USER`
+- password: value of `TOKENLEARN_ARTEMIS_PASSWORD`
 
 Stop the stack:
 
@@ -256,27 +296,29 @@ scp -r server openu_all_courses.json user@REMOTE_HOST:/opt/tokenlearn/
 
 ### Review secrets before first start
 
-Update the values in `docker-compose.yml` or provide a compose override file.
-Do not keep the example secrets in production.
+Copy `.env.example` to `.env` and put real values there.
+Do not keep production secrets inside `docker-compose.yml` or commit `.env`.
 
 At minimum replace:
 
-- SQL Server `sa` password
-- Artemis credentials
-- `JWT_SECRET`
-- `GOOGLE_CLIENT_ID` if Google login is enabled
+- `TOKENLEARN_DB_PASSWORD`
+- `TOKENLEARN_ARTEMIS_PASSWORD`
+- `TOKENLEARN_JWT_SECRET`
+- `TOKENLEARN_GOOGLE_CLIENT_ID` if Google login is enabled
 
 ### Start the deployment
 
 ```bash
 cd /opt/tokenlearn/server
+cp .env.example .env
+# edit .env with production values
 docker compose up -d --build
 ```
 
 ### Create the database
 
 ```bash
-docker exec tokenlearn-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "YourStrong!Passw0rd" -Q "IF DB_ID('tokenlearn') IS NULL CREATE DATABASE tokenlearn;"
+docker exec tokenlearn-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "YOUR_DB_PASSWORD_FROM_ENV" -Q "IF DB_ID('tokenlearn') IS NULL CREATE DATABASE tokenlearn;"
 ```
 
 ### Restart the backend once
@@ -300,6 +342,7 @@ docker compose logs --tail=100 tokenlearn-server
 - avoid exposing SQL Server and Artemis publicly unless required
 - restrict access to port `8161`
 - replace default credentials
+- store `.env` securely on the host and restrict its filesystem permissions
 - back up the SQL Server volume
 
 ## Operational Notes

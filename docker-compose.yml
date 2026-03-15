@@ -4,10 +4,10 @@ services:
     container_name: tokenlearn-sqlserver
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
-      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: "${TOKENLEARN_DB_PASSWORD:?TOKENLEARN_DB_PASSWORD is required}"
+      MSSQL_PID: "${TOKENLEARN_MSSQL_PID:-Developer}"
     ports:
-      - "1433:1433"
+      - "${TOKENLEARN_SQLSERVER_PORT:-1433}:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     restart: unless-stopped
@@ -16,11 +16,11 @@ services:
     image: vromero/activemq-artemis:latest
     container_name: tokenlearn-artemis
     environment:
-      ARTEMIS_USERNAME: "admin"
-      ARTEMIS_PASSWORD: "admin"
+      ARTEMIS_USERNAME: "${TOKENLEARN_ARTEMIS_USER:-admin}"
+      ARTEMIS_PASSWORD: "${TOKENLEARN_ARTEMIS_PASSWORD:?TOKENLEARN_ARTEMIS_PASSWORD is required}"
     ports:
-      - "61616:61616"
-      - "8161:8161"
+      - "${TOKENLEARN_ARTEMIS_BROKER_PORT:-61616}:61616"
+      - "${TOKENLEARN_ARTEMIS_WEB_PORT:-8161}:8161"
     restart: unless-stopped
 
   tokenlearn-server:
@@ -32,22 +32,22 @@ services:
       - sqlserver
       - artemis
     environment:
-      SPRING_DATASOURCE_URL: "jdbc:sqlserver://sqlserver:1433;databaseName=tokenlearn;encrypt=false"
+      SPRING_DATASOURCE_URL: "jdbc:sqlserver://sqlserver:1433;databaseName=${TOKENLEARN_DB_NAME:-tokenlearn};encrypt=${TOKENLEARN_DB_ENCRYPT:-false}"
       SPRING_DATASOURCE_USERNAME: "sa"
-      SPRING_DATASOURCE_PASSWORD: "YourStrong!Passw0rd"
+      SPRING_DATASOURCE_PASSWORD: "${TOKENLEARN_DB_PASSWORD:?TOKENLEARN_DB_PASSWORD is required}"
       SPRING_ARTEMIS_MODE: "native"
       SPRING_ARTEMIS_BROKER_URL: "tcp://artemis:61616"
-      SPRING_ARTEMIS_USER: "admin"
-      SPRING_ARTEMIS_PASSWORD: "admin"
-      JWT_SECRET: "VG9rZW5MZWFyblNlcnZlclNlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvbkFuZFZlcmlmaWNhdGlvbg=="
-      JWT_EXPIRATION: "86400000"
-      GOOGLE_CLIENT_ID: "680252947224-1mhcnhnsb9o8akj34ac41c1svon4qrc8.apps.googleusercontent.com"
-      SPRING_FLYWAY_ENABLED: "true"
-      APP_COURSE_CATALOG_PATH: "/app/openu_all_courses.json"
+      SPRING_ARTEMIS_USER: "${TOKENLEARN_ARTEMIS_USER:-admin}"
+      SPRING_ARTEMIS_PASSWORD: "${TOKENLEARN_ARTEMIS_PASSWORD:?TOKENLEARN_ARTEMIS_PASSWORD is required}"
+      JWT_SECRET: "${TOKENLEARN_JWT_SECRET:?TOKENLEARN_JWT_SECRET is required}"
+      JWT_EXPIRATION: "${TOKENLEARN_JWT_EXPIRATION:-86400000}"
+      GOOGLE_CLIENT_ID: "${TOKENLEARN_GOOGLE_CLIENT_ID:-}"
+      SPRING_FLYWAY_ENABLED: "${TOKENLEARN_FLYWAY_ENABLED:-true}"
+      APP_COURSE_CATALOG_PATH: "${TOKENLEARN_COURSE_CATALOG_CONTAINER_PATH:-/app/openu_all_courses.json}"
     ports:
-      - "8080:8080"
+      - "${TOKENLEARN_SERVER_PORT:-8080}:8080"
     volumes:
-      - ../openu_all_courses.json:/app/openu_all_courses.json:ro
+      - ${TOKENLEARN_COURSE_CATALOG_HOST_PATH:-../openu_all_courses.json}:${TOKENLEARN_COURSE_CATALOG_CONTAINER_PATH:-/app/openu_all_courses.json}:ro
     restart: on-failure
 
 volumes:
