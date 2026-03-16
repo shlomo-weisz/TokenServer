@@ -13,9 +13,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * Persists inbox notifications consumed by the client.
@@ -31,6 +34,8 @@ public class NotificationService {
     public static final String EVENT_LESSON_CANCELLED = "LESSON_CANCELLED";
     public static final String EVENT_LESSON_REMINDER = "LESSON_REMINDER";
     public static final String EVENT_LESSON_MESSAGE = "LESSON_MESSAGE";
+    public static final String EVENT_ADMIN_CONTACT_MESSAGE = "ADMIN_CONTACT_MESSAGE";
+    private static final String MANAGER_TEAM_LABEL = "TokenLearn Managers";
 
     private final NotificationDao notificationDao;
     private final UserDao userDao;
@@ -141,6 +146,60 @@ public class NotificationService {
         return recipientNotificationId;
     }
 
+    public Long createAdminContactMessageNotification(
+            Long contactId,
+            Integer requesterId,
+            Integer senderId,
+            String subject,
+            String messageBody,
+            List<Integer> adminIds) {
+        Set<Integer> adminIdSet = adminIds == null
+                ? Set.of()
+                : adminIds.stream()
+                        .filter(Objects::nonNull)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        LinkedHashSet<Integer> participantIds = new LinkedHashSet<>();
+        participantIds.add(requesterId);
+        participantIds.addAll(adminIdSet);
+
+        String requesterName = resolveUserDisplayName(requesterId);
+        String normalizedSubject = subject == null ? "" : subject.trim();
+        String actionPath = "/messages?contact=" + contactId;
+        Long primaryNotificationId = null;
+
+        for (Integer recipientId : participantIds) {
+            boolean recipientIsAdmin = adminIdSet.contains(recipientId);
+            boolean isSender = recipientId.equals(senderId);
+            String counterpartName = recipientIsAdmin ? requesterName : MANAGER_TEAM_LABEL;
+
+            Long notificationId = notificationDao.create(NotificationEntity.builder()
+                    .userId(recipientId)
+                    .eventType(EVENT_ADMIN_CONTACT_MESSAGE)
+                    .contactId(contactId)
+                    .counterpartName(counterpartName)
+                    .courseName(normalizedSubject)
+                    .messageBody(messageBody)
+                    .senderUserId(senderId)
+                    .actionPath(actionPath)
+                    .isRead(isSender)
+                    .build());
+
+            if (!isSender && primaryNotificationId == null) {
+                primaryNotificationId = notificationId;
+            } else if (primaryNotificationId == null) {
+                primaryNotificationId = notificationId;
+            }
+        }
+
+        return primaryNotificationId;
+    }
+
+    public List<Map<String, Object>> adminContactThreadForUser(Integer userId, Long contactId) {
+        return notificationDao.findByUser(userId, 200, 0, false, null, EVENT_ADMIN_CONTACT_MESSAGE, contactId).stream()
+                .map(notification -> toPayload(notification, userId))
+                .toList();
+    }
+
     public List<Map<String, Object>> unreadForUser(Integer userId, int limit) {
         return notificationDao.findUnreadByUser(userId, limit).stream()
                 .map(notification -> toPayload(notification, userId))
@@ -154,7 +213,7 @@ public class NotificationService {
             boolean unreadOnly,
             Integer lessonId,
             String eventType) {
-        return notificationDao.findByUser(userId, limit, offset, unreadOnly, lessonId, normalizeEventType(eventType)).stream()
+        return notificationDao.findByUser(userId, limit, offset, unreadOnly, lessonId, normalizeEventType(eventType), null).stream()
                 .map(notification -> toPayload(notification, userId))
                 .toList();
     }
@@ -209,8 +268,10 @@ public class NotificationService {
         out.put("eventType", notification.getEventType());
         out.put("requestId", notification.getRequestId());
         out.put("lessonId", notification.getLessonId());
+        out.put("contactId", notification.getContactId());
         out.put("counterpartName", notification.getCounterpartName());
         out.put("courseName", notification.getCourseName());
+        out.put("subject", notification.getContactId() == null ? null : notification.getCourseName());
         out.put("scheduledAt", notification.getScheduledAt());
         out.put("rejectionReason", notification.getRejectionReason());
         out.put("messageBody", notification.getMessageBody());

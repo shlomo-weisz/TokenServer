@@ -28,6 +28,7 @@ public class NotificationDao {
             .eventType(rs.getString("event_type"))
             .requestId((Integer) rs.getObject("request_id"))
             .lessonId((Integer) rs.getObject("lesson_id"))
+            .contactId((Long) rs.getObject("contact_id"))
             .counterpartName(rs.getString("counterpart_name"))
             .courseName(rs.getString("course_name"))
             .scheduledAt(rs.getObject("scheduled_at", LocalDateTime.class))
@@ -43,12 +44,12 @@ public class NotificationDao {
     public Long create(NotificationEntity notification) {
         String sql = """
                 INSERT INTO notifications (
-                  user_id, event_type, request_id, lesson_id, counterpart_name,
+                  user_id, event_type, request_id, lesson_id, contact_id, counterpart_name,
                   course_name, scheduled_at, rejection_reason, message_body, sender_user_id,
                   action_path, is_read
                 )
                 VALUES (
-                  :userId, :eventType, :requestId, :lessonId, :counterpartName,
+                  :userId, :eventType, :requestId, :lessonId, :contactId, :counterpartName,
                   :courseName, :scheduledAt, :rejectionReason, :messageBody, :senderUserId,
                   :actionPath, :isRead
                 )
@@ -58,6 +59,7 @@ public class NotificationDao {
                 .addValue("eventType", notification.getEventType())
                 .addValue("requestId", notification.getRequestId())
                 .addValue("lessonId", notification.getLessonId())
+                .addValue("contactId", notification.getContactId())
                 .addValue("counterpartName", notification.getCounterpartName())
                 .addValue("courseName", notification.getCourseName())
                 .addValue("scheduledAt", notification.getScheduledAt())
@@ -72,7 +74,7 @@ public class NotificationDao {
     }
 
     public List<NotificationEntity> findUnreadByUser(Integer userId, int limit) {
-        return findByUser(userId, limit, 0, true, null, null);
+        return findByUser(userId, limit, 0, true, null, null, null);
     }
 
     public List<NotificationEntity> findByUser(
@@ -81,9 +83,10 @@ public class NotificationDao {
             int offset,
             boolean unreadOnly,
             Integer lessonId,
-            String eventType) {
+            String eventType,
+            Long contactId) {
         String sql = """
-                SELECT notification_id, user_id, event_type, request_id, lesson_id, counterpart_name,
+                SELECT notification_id, user_id, event_type, request_id, lesson_id, contact_id, counterpart_name,
                        course_name, scheduled_at, rejection_reason, message_body, sender_user_id,
                        action_path, is_read, created_at, read_at
                 FROM notifications
@@ -91,6 +94,7 @@ public class NotificationDao {
                   AND (:unreadOnly = 0 OR is_read = 0)
                   AND (:lessonId IS NULL OR lesson_id = :lessonId)
                   AND (:eventType IS NULL OR event_type = :eventType)
+                  AND (:contactId IS NULL OR contact_id = :contactId)
                 ORDER BY created_at DESC
                 OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
                 """;
@@ -99,6 +103,7 @@ public class NotificationDao {
                 .addValue("unreadOnly", unreadOnly ? 1 : 0)
                 .addValue("lessonId", lessonId)
                 .addValue("eventType", eventType)
+                .addValue("contactId", contactId)
                 .addValue("offset", Math.max(0, offset))
                 .addValue("limit", Math.max(1, limit)), mapper);
     }

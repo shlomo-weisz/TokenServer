@@ -4,6 +4,7 @@ import com.tokenlearn.server.dto.ApiResponse;
 import com.tokenlearn.server.dto.AdminUpdateRatingRequest;
 import com.tokenlearn.server.dto.AdminUpdateUserRequest;
 import com.tokenlearn.server.dto.ContactAdminRequest;
+import com.tokenlearn.server.dto.CreateAdminContactReplyRequest;
 import com.tokenlearn.server.dto.UpdateUserTokensRequest;
 import com.tokenlearn.server.service.AdminService;
 import com.tokenlearn.server.util.AuthUtil;
@@ -60,6 +61,23 @@ public class AdminController {
             @Valid @RequestBody ContactAdminRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(adminService.contact(userId, request.getSubject(), request.getMessage()));
+    }
+
+    @GetMapping("/contact/{contactId}/thread")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> contactThread(
+            Authentication authentication,
+            @PathVariable Long contactId) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(adminService.contactThread(userId, contactId));
+    }
+
+    @PostMapping("/contact/{contactId}/reply")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> replyToContact(
+            Authentication authentication,
+            @PathVariable Long contactId,
+            @Valid @RequestBody CreateAdminContactReplyRequest request) {
+        Integer userId = AuthUtil.requireUserId(authentication);
+        return ok(adminService.replyToContact(userId, contactId, request.getMessage()));
     }
 
     @PostMapping("/tutors/{tutorId}/block")

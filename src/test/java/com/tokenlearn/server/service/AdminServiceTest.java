@@ -6,6 +6,7 @@ import com.tokenlearn.server.dao.LessonDao;
 import com.tokenlearn.server.dao.RatingDao;
 import com.tokenlearn.server.dao.TokenTransactionDao;
 import com.tokenlearn.server.dao.UserDao;
+import com.tokenlearn.server.domain.AdminContactEntity;
 import com.tokenlearn.server.domain.CourseEntity;
 import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.RatingEntity;
@@ -22,6 +23,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -29,21 +31,24 @@ import static org.mockito.Mockito.when;
 
 class AdminServiceTest {
     private UserDao userDao;
+    private AdminDao adminDao;
     private LessonDao lessonDao;
     private RatingDao ratingDao;
     private CourseDao courseDao;
     private TokenService tokenService;
+    private NotificationService notificationService;
     private AdminService adminService;
 
     @BeforeEach
     void setUp() {
         userDao = mock(UserDao.class);
-        AdminDao adminDao = mock(AdminDao.class);
+        adminDao = mock(AdminDao.class);
         lessonDao = mock(LessonDao.class);
         ratingDao = mock(RatingDao.class);
         TokenTransactionDao tokenTransactionDao = mock(TokenTransactionDao.class);
         courseDao = mock(CourseDao.class);
         tokenService = mock(TokenService.class);
+        notificationService = mock(NotificationService.class);
 
         adminService = new AdminService(
                 userDao,
@@ -52,7 +57,8 @@ class AdminServiceTest {
                 ratingDao,
                 tokenTransactionDao,
                 courseDao,
-                tokenService);
+                tokenService,
+                notificationService);
     }
 
     @Test
@@ -180,6 +186,72 @@ class AdminServiceTest {
         assertEquals("Dana Student", result.get("fullName"));
         assertEquals(1, result.get("totalCount"));
         verify(tokenService).history(9, 25, 0);
+    }
+
+    @Test
+    void contactCreatesSharedAdminThreadAndReturnsThreadLink() {
+        when(adminDao.createContact(7, "Billing", "Need help with my payment"))
+                .thenReturn(91L);
+        when(adminDao.findActiveAdminIds()).thenReturn(List.of(1, 2));
+
+        Map<String, Object> result = adminService.contact(7, " Billing ", " Need help with my payment ");
+
+        verify(notificationService).createAdminContactMessageNotification(
+                91L,
+                7,
+                7,
+                "Billing",
+                "Need help with my payment",
+                List.of(1, 2));
+        assertEquals(91L, result.get("contactId"));
+        assertEquals("/messages?contact=91", result.get("actionPath"));
+        assertEquals("submitted", result.get("status"));
+    }
+
+    @Test
+    void replyToContactLetsAdminBroadcastReplyToAllAdminsAndOwner() {
+        UserEntity admin = user(1, "admin@tokenlearn.com", "Admin", "User", true);
+        AdminContactEntity contact = AdminContactEntity.builder()
+                .contactId(55L)
+                .userId(9)
+                .subject("Missing tokens")
+                .status("SUBMITTED")
+                .build();
+
+        when(userDao.findById(1)).thenReturn(Optional.of(admin));
+        when(adminDao.findContactById(55L)).thenReturn(Optional.of(contact));
+        when(adminDao.findActiveAdminIds()).thenReturn(List.of(1, 2, 3));
+        when(notificationService.createAdminContactMessageNotification(
+                55L,
+                9,
+                1,
+                "Missing tokens",
+                "We are checking it now",
+                List.of(1, 2, 3)))
+                .thenReturn(501L);
+
+        Map<String, Object> result = adminService.replyToContact(1, 55L, " We are checking it now ");
+
+        verify(adminDao).updateContactStatus(55L, "IN_PROGRESS");
+        assertEquals(501L, result.get("notificationId"));
+        assertEquals(55L, result.get("contactId"));
+        assertEquals("We are checking it now", result.get("message"));
+        assertEquals("/messages?contact=55", result.get("actionPath"));
+    }
+
+    @Test
+    void replyToContactRejectsUnrelatedNonAdminUser() {
+        UserEntity outsider = user(12, "user@tokenlearn.com", "Dana", "Student", false);
+        AdminContactEntity contact = AdminContactEntity.builder()
+                .contactId(72L)
+                .userId(9)
+                .subject("Support")
+                .build();
+
+        when(userDao.findById(12)).thenReturn(Optional.of(outsider));
+        when(adminDao.findContactById(72L)).thenReturn(Optional.of(contact));
+
+        assertThrows(com.tokenlearn.server.exception.AppException.class, () -> adminService.replyToContact(12, 72L, "Hello"));
     }
 
     private UserEntity user(Integer id, String email, String firstName, String lastName, boolean isAdmin) {

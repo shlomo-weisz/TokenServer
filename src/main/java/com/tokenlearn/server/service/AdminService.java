@@ -6,6 +6,7 @@ import com.tokenlearn.server.dao.LessonDao;
 import com.tokenlearn.server.dao.RatingDao;
 import com.tokenlearn.server.dao.TokenTransactionDao;
 import com.tokenlearn.server.dao.UserDao;
+import com.tokenlearn.server.domain.AdminContactEntity;
 import com.tokenlearn.server.domain.CourseEntity;
 import com.tokenlearn.server.domain.LessonEntity;
 import com.tokenlearn.server.domain.RatingEntity;
@@ -39,6 +40,7 @@ public class AdminService {
     private final TokenTransactionDao tokenTransactionDao;
     private final CourseDao courseDao;
     private final TokenService tokenService;
+    private final NotificationService notificationService;
 
     public AdminService(UserDao userDao,
             AdminDao adminDao,
@@ -46,7 +48,8 @@ public class AdminService {
             RatingDao ratingDao,
             TokenTransactionDao tokenTransactionDao,
             CourseDao courseDao,
-            TokenService tokenService) {
+            TokenService tokenService,
+            NotificationService notificationService) {
         this.userDao = userDao;
         this.adminDao = adminDao;
         this.lessonDao = lessonDao;
@@ -54,11 +57,11 @@ public class AdminService {
         this.tokenTransactionDao = tokenTransactionDao;
         this.courseDao = courseDao;
         this.tokenService = tokenService;
+        this.notificationService = notificationService;
     }
 
     public void requireAdmin(Integer userId) {
-        UserEntity user = userDao.findById(userId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
+        UserEntity user = requireUser(userId);
         if (!Boolean.TRUE.equals(user.getIsAdmin())) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Admin privileges required");
         }
@@ -189,11 +192,76 @@ public class AdminService {
 
     @Transactional
     public Map<String, Object> contact(Integer userId, String subject, String message) {
-        Long id = adminDao.createContact(userId, subject, message);
+        String normalizedSubject = subject == null ? "" : subject.trim();
+        String normalizedMessage = message == null ? "" : message.trim();
+        Long contactId = adminDao.createContact(userId, normalizedSubject, normalizedMessage);
+        notificationService.createAdminContactMessageNotification(
+                contactId,
+                userId,
+                userId,
+                normalizedSubject,
+                normalizedMessage,
+                adminDao.findActiveAdminIds());
         return Map.of(
-                "id", "contact_" + id,
+                "id", "contact_" + contactId,
+                "contactId", contactId,
                 "status", "submitted",
-                "submittedAt", LocalDateTime.now());
+                "submittedAt", LocalDateTime.now(),
+                "actionPath", "/messages?contact=" + contactId);
+    }
+
+    public Map<String, Object> contactThread(Integer userId, Long contactId) {
+        UserEntity viewer = requireUser(userId);
+        AdminContactEntity contact = requireContact(contactId);
+        boolean viewerIsAdmin = Boolean.TRUE.equals(viewer.getIsAdmin());
+        if (!viewerIsAdmin && !contact.getUserId().equals(userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only the thread owner or admins can access this contact");
+        }
+
+        UserEntity owner = userDao.findById(contact.getUserId()).orElse(null);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("contactId", contact.getContactId());
+        out.put("subject", contact.getSubject());
+        out.put("status", normalizeContactStatus(contact.getStatus()));
+        out.put("submittedAt", contact.getSubmittedAt());
+        out.put("ownerId", contact.getUserId());
+        out.put("ownerName", formatDisplayName(owner));
+        out.put("viewerIsAdmin", viewerIsAdmin);
+        out.put("messages", notificationService.adminContactThreadForUser(userId, contactId));
+        return out;
+    }
+
+    @Transactional
+    public Map<String, Object> replyToContact(Integer userId, Long contactId, String message) {
+        UserEntity sender = requireUser(userId);
+        AdminContactEntity contact = requireContact(contactId);
+        boolean senderIsAdmin = Boolean.TRUE.equals(sender.getIsAdmin());
+        if (!senderIsAdmin && !contact.getUserId().equals(userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only the thread owner or admins can reply to this contact");
+        }
+
+        String normalizedMessage = message == null ? "" : message.trim();
+        if (normalizedMessage.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Message is required");
+        }
+
+        Long notificationId = notificationService.createAdminContactMessageNotification(
+                contactId,
+                contact.getUserId(),
+                userId,
+                contact.getSubject(),
+                normalizedMessage,
+                adminDao.findActiveAdminIds());
+        adminDao.updateContactStatus(contactId, "IN_PROGRESS");
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("notificationId", notificationId);
+        out.put("contactId", contactId);
+        out.put("message", normalizedMessage);
+        out.put("status", "in_progress");
+        out.put("sentAt", LocalDateTime.now());
+        out.put("actionPath", "/messages?contact=" + contactId);
+        return out;
     }
 
     @Transactional
@@ -364,6 +432,23 @@ public class AdminService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private UserEntity requireUser(Integer userId) {
+        return userDao.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
+    }
+
+    private AdminContactEntity requireContact(Long contactId) {
+        return adminDao.findContactById(contactId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Contact thread not found"));
+    }
+
+    private String normalizeContactStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "submitted";
+        }
+        return status.trim().toLowerCase();
     }
 
     private String formatDisplayName(UserEntity user) {

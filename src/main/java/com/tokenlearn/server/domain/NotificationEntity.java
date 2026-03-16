@@ -20,6 +20,7 @@ public class NotificationEntity {
     private String eventType;
     private Integer requestId;
     private Integer lessonId;
+    private Long contactId;
     private String counterpartName;
     private String courseName;
     private LocalDateTime scheduledAt;

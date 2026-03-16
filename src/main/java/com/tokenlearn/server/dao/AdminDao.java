@@ -1,14 +1,18 @@
 package com.tokenlearn.server.dao;
 
+import com.tokenlearn.server.domain.AdminContactEntity;
 import com.tokenlearn.server.domain.CourseEntity;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Aggregation and maintenance queries used by the admin dashboard and contact flows.
@@ -20,6 +24,15 @@ public class AdminDao {
     public AdminDao(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
+
+    private final RowMapper<AdminContactEntity> contactMapper = (rs, rowNum) -> AdminContactEntity.builder()
+            .contactId(rs.getLong("contact_id"))
+            .userId(rs.getInt("user_id"))
+            .subject(rs.getString("subject"))
+            .message(rs.getString("message"))
+            .status(rs.getString("status"))
+            .submittedAt(rs.getObject("submitted_at", LocalDateTime.class))
+            .build();
 
     public int totalUsers() {
         Integer value = jdbc.queryForObject("SELECT COUNT(*) FROM users", new MapSqlParameterSource(), Integer.class);
@@ -84,6 +97,41 @@ public class AdminDao {
                 .addValue("subject", subject)
                 .addValue("message", message), kh, new String[] { "contact_id" });
         return kh.getKey().longValue();
+    }
+
+    public Optional<AdminContactEntity> findContactById(Long contactId) {
+        String sql = """
+                SELECT contact_id, user_id, subject, message, status, submitted_at
+                FROM admin_contacts
+                WHERE contact_id = :contactId
+                """;
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("contactId", contactId), contactMapper));
+        } catch (Exception ex) {
+            return Optional.empty();
+        }
+    }
+
+    public List<Integer> findActiveAdminIds() {
+        String sql = """
+                SELECT user_id
+                FROM users
+                WHERE is_admin = 1
+                  AND is_active = 1
+                ORDER BY user_id
+                """;
+        return jdbc.queryForList(sql, new MapSqlParameterSource(), Integer.class);
+    }
+
+    public void updateContactStatus(Long contactId, String status) {
+        String sql = """
+                UPDATE admin_contacts
+                SET status = :status
+                WHERE contact_id = :contactId
+                """;
+        jdbc.update(sql, new MapSqlParameterSource()
+                .addValue("contactId", contactId)
+                .addValue("status", status));
     }
 
     public List<Map<String, Object>> recentActivity(int limit) {
