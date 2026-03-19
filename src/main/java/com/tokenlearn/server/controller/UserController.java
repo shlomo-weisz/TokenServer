@@ -14,10 +14,10 @@ import java.util.Map;
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
 /**
- * Endpoints for self-service profile management and public user profile lookups.
+ * Endpoints for the authenticated profile singleton and public user profile lookups.
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api")
 public class UserController {
     private final UserService userService;
 
@@ -25,13 +25,13 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<ApiResponse<UserProfileDto>> me(Authentication authentication) {
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<UserProfileDto>> profile(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(userService.getProfile(userId, true));
     }
 
-    @PostMapping("/profile")
+    @PatchMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(
             Authentication authentication,
             @Valid @RequestBody UpdateUserProfileRequest request) {
@@ -39,7 +39,7 @@ public class UserController {
         return ok(userService.updateProfile(userId, request));
     }
 
-    @PostMapping("/me/photo")
+    @PutMapping("/profile/photo")
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadPhoto(
             Authentication authentication,
             @RequestPart("file") MultipartFile file) {
@@ -48,12 +48,12 @@ public class UserController {
         return ok(Map.of("photoUrl", photoUrl));
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<UserProfileDto>> byId(@PathVariable Integer userId) {
         return ok(userService.getProfile(userId, false));
     }
 
-    @GetMapping("/{userId}/ratings")
+    @GetMapping("/users/{userId}/ratings")
     public ResponseEntity<ApiResponse<Map<String, Object>>> ratings(@PathVariable Integer userId) {
         return ok(userService.getUserRatings(userId));
     }

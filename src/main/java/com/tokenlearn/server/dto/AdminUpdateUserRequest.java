@@ -1,8 +1,6 @@
 package com.tokenlearn.server.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -18,16 +16,13 @@ import static com.tokenlearn.server.validation.InputValidationPatterns.URL_HTTP_
 @Data
 public class AdminUpdateUserRequest {
     @Email
-    @NotBlank
     @Size(max = 254)
     private String email;
 
-    @NotBlank
     @Size(max = 50)
     @Pattern(regexp = NAME, message = "First name may contain letters, spaces, apostrophes, and hyphens only")
     private String firstName;
 
-    @NotBlank
     @Size(max = 50)
     @Pattern(regexp = NAME, message = "Last name may contain letters, spaces, apostrophes, and hyphens only")
     private String lastName;
@@ -48,12 +43,9 @@ public class AdminUpdateUserRequest {
     @Pattern(regexp = NO_HTML_TAGS, message = "About me as student must not contain HTML tags")
     private String aboutMeAsStudent;
 
-    @NotNull
     private Boolean isAdmin;
 
-    @NotNull
     private Boolean isBlockedTutor;
 
-    @NotNull
     private Boolean isActive;
 }

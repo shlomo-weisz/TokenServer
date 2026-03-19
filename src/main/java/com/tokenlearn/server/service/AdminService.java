@@ -111,29 +111,42 @@ public class AdminService {
         UserEntity existing = userDao.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
 
+        boolean resolvedIsAdmin = request.getIsAdmin() == null ? Boolean.TRUE.equals(existing.getIsAdmin()) : Boolean.TRUE.equals(request.getIsAdmin());
+        boolean resolvedIsBlockedTutor = request.getIsBlockedTutor() == null
+                ? Boolean.TRUE.equals(existing.getIsBlockedTutor())
+                : Boolean.TRUE.equals(request.getIsBlockedTutor());
+        boolean resolvedIsActive = request.getIsActive() == null ? Boolean.TRUE.equals(existing.getIsActive()) : Boolean.TRUE.equals(request.getIsActive());
+
         if (Boolean.TRUE.equals(existing.getIsAdmin())
                 && adminId.equals(userId)
-                && Boolean.FALSE.equals(request.getIsAdmin())) {
+                && !resolvedIsAdmin) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_OPERATION", "Cannot remove your own admin role");
         }
 
-        String email = request.getEmail().trim();
-        if (userDao.existsByEmailExcludingUser(email, userId)) {
+        String email = resolveRequiredText("email", request.getEmail(), existing.getEmail());
+        if (!email.equalsIgnoreCase(existing.getEmail()) && userDao.existsByEmailExcludingUser(email, userId)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "EMAIL_EXISTS", "Email already exists");
         }
+
+        String firstName = resolveRequiredText("firstName", request.getFirstName(), existing.getFirstName());
+        String lastName = resolveRequiredText("lastName", request.getLastName(), existing.getLastName());
+        String phone = resolveOptionalText(request.getPhone(), existing.getPhone());
+        String photoUrl = resolveOptionalText(request.getPhotoUrl(), existing.getPhotoUrl());
+        String aboutTeacher = resolveOptionalText(request.getAboutMeAsTeacher(), existing.getAboutMeAsTeacher());
+        String aboutStudent = resolveOptionalText(request.getAboutMeAsStudent(), existing.getAboutMeAsStudent());
 
         userDao.updateByAdmin(
                 userId,
                 email,
-                request.getFirstName().trim(),
-                request.getLastName().trim(),
-                nullableTrim(request.getPhone()),
-                nullableTrim(request.getPhotoUrl()),
-                nullableTrim(request.getAboutMeAsTeacher()),
-                nullableTrim(request.getAboutMeAsStudent()),
-                Boolean.TRUE.equals(request.getIsAdmin()),
-                Boolean.TRUE.equals(request.getIsBlockedTutor()),
-                Boolean.TRUE.equals(request.getIsActive()));
+                firstName,
+                lastName,
+                phone,
+                photoUrl,
+                aboutTeacher,
+                aboutStudent,
+                resolvedIsAdmin,
+                resolvedIsBlockedTutor,
+                resolvedIsActive);
 
         UserEntity updated = userDao.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "User not found"));
@@ -432,6 +445,24 @@ public class AdminService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String resolveRequiredText(String fieldName, String incomingValue, String existingValue) {
+        if (incomingValue == null) {
+            return existingValue;
+        }
+        String trimmed = incomingValue.trim();
+        if (trimmed.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", fieldName + " is required");
+        }
+        return trimmed;
+    }
+
+    private String resolveOptionalText(String incomingValue, String existingValue) {
+        if (incomingValue == null) {
+            return existingValue;
+        }
+        return nullableTrim(incomingValue);
     }
 
     private UserEntity requireUser(Integer userId) {

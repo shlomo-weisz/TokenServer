@@ -15,10 +15,10 @@ import java.util.Map;
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
 /**
- * Endpoints for token wallet balance, purchases, peer transfers, and transaction history.
+ * Endpoints for the authenticated wallet, purchases, peer transfers, and transaction history.
  */
 @RestController
-@RequestMapping("/api/tokens")
+@RequestMapping("/api")
 public class TokenController {
     private final TokenService tokenService;
 
@@ -26,13 +26,13 @@ public class TokenController {
         this.tokenService = tokenService;
     }
 
-    @GetMapping("/balance")
+    @GetMapping("/wallet")
     public ResponseEntity<ApiResponse<Map<String, Object>>> balance(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(tokenService.getBalance(userId));
     }
 
-    @PostMapping("/buy")
+    @PostMapping("/token-purchases")
     public ResponseEntity<ApiResponse<Map<String, Object>>> buy(
             Authentication authentication,
             @Valid @RequestBody BuyTokensRequest request) {
@@ -40,7 +40,7 @@ public class TokenController {
         return ok(tokenService.buy(userId, request));
     }
 
-    @PostMapping("/transfer")
+    @PostMapping("/token-transfers")
     public ResponseEntity<ApiResponse<Map<String, Object>>> transfer(
             Authentication authentication,
             @Valid @RequestBody TransferTokensRequest request) {
@@ -48,7 +48,7 @@ public class TokenController {
         return ok(tokenService.transfer(userId, request));
     }
 
-    @GetMapping("/history")
+    @GetMapping("/token-transactions")
     public ResponseEntity<ApiResponse<Map<String, Object>>> history(
             Authentication authentication,
             @RequestParam(defaultValue = "20") int limit,

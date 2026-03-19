@@ -13,7 +13,7 @@ import java.util.Map;
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
 /**
- * Read-only course catalog endpoints used by course search and selection flows.
+ * Read-only course catalog endpoints used by course search and category selection flows.
  */
 @RestController
 @RequestMapping("/api/courses")

@@ -15,10 +15,10 @@ import static com.tokenlearn.server.controller.ApiResponses.created;
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
 /**
- * Authentication endpoints for login, registration, password recovery, and token verification.
+ * Authentication endpoints for session lifecycle, registration, password reset resources, and token verification.
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api")
 public class AuthController {
     private final AuthService authService;
 
@@ -26,31 +26,31 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/login")
+    @PostMapping("/session")
     public ResponseEntity<ApiResponse<AuthPayloadDto>> login(@Valid @RequestBody AuthLoginRequest request) {
-        return ok(authService.login(request));
+        return created(authService.login(request));
     }
 
-    @PostMapping("/register")
+    @PostMapping("/users")
     public ResponseEntity<ApiResponse<AuthPayloadDto>> register(@Valid @RequestBody RegisterRequest request) {
         return created(authService.register(request));
     }
 
-    @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<AuthPayloadDto>> signupAlias(@Valid @RequestBody RegisterRequest request) {
-        return created(authService.register(request));
+    @PostMapping("/password-reset-requests")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createPasswordResetRequest(@Valid @RequestBody EmailRequest request) {
+        return created(Map.of(
+                "email", request.getEmail(),
+                "secretQuestion", authService.getSecretQuestion(request.getEmail())));
     }
 
-    @PostMapping("/secret-question")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> secretQuestion(@Valid @RequestBody EmailRequest request) {
-        return ok(Map.of("secretQuestion", authService.getSecretQuestion(request.getEmail())));
-    }
-
-    @PostMapping("/verify-secret-answer")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> verifySecretAnswer(@Valid @RequestBody VerifySecretAnswerRequest request) {
+    @PostMapping("/password-reset-tokens")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createPasswordResetToken(@Valid @RequestBody VerifySecretAnswerRequest request) {
         try {
             String resetToken = authService.verifySecretAnswerAndCreateResetToken(request);
-            return ok(Map.of("verified", true, "resetToken", resetToken));
+            return created(Map.of(
+                    "verified", true,
+                    "email", request.getEmail(),
+                    "resetToken", resetToken));
         } catch (AppException ex) {
             if ("INVALID_SECRET_ANSWER".equals(ex.getCode())) {
                 return ok(Map.of("verified", false, "message", "Incorrect answer"));
@@ -59,24 +59,24 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    @PostMapping("/password-reset-completions")
+    public ResponseEntity<ApiResponse<Map<String, String>>> completePasswordReset(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
-        return ok(Map.of("message", "Password reset successfully"));
+        return created(Map.of("message", "Password reset successfully"));
     }
 
-    @PostMapping("/google")
-    public ResponseEntity<ApiResponse<AuthPayloadDto>> google(@Valid @RequestBody GoogleAuthRequest request) {
-        return ok(authService.googleLogin(request));
+    @PostMapping("/identity-providers/google/sessions")
+    public ResponseEntity<ApiResponse<AuthPayloadDto>> createGoogleSession(@Valid @RequestBody GoogleAuthRequest request) {
+        return created(authService.googleLogin(request));
     }
 
-    @PostMapping("/logout")
+    @DeleteMapping("/session")
     public ResponseEntity<ApiResponse<Map<String, String>>> logout() {
         return ok(Map.of("message", "Logged out successfully"));
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> verify(Authentication authentication) {
+    @GetMapping("/session")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> currentSession(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(Map.of(
                 "valid", true,

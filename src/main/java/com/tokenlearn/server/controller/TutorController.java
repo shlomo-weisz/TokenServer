@@ -19,10 +19,10 @@ import java.util.Map;
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
 /**
- * Tutor discovery endpoints covering recommendations, search, public profiles, and availability.
+ * Tutor discovery endpoints covering filtered listings, public profiles, and availability.
  */
 @RestController
-@RequestMapping("/api/tutors")
+@RequestMapping("/api")
 public class TutorController {
     private final TutorService tutorService;
 
@@ -30,33 +30,28 @@ public class TutorController {
         this.tutorService = tutorService;
     }
 
-    @GetMapping("/recommended")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> recommended(
-            Authentication authentication,
-            @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(defaultValue = "0") BigDecimal minRating) {
-        Integer userId = AuthUtil.requireUserId(authentication);
-        return ok(tutorService.recommended(userId, limit, minRating));
-    }
-
-    @GetMapping("/search")
+    @GetMapping("/tutors")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> search(
             Authentication authentication,
+            @RequestParam(defaultValue = "false") boolean recommended,
             @RequestParam(required = false) String course,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Boolean taughtMeBefore,
             @RequestParam(defaultValue = "0") BigDecimal minRating,
             @RequestParam(defaultValue = "20") int limit) {
         Integer userId = AuthUtil.requireUserId(authentication);
+        if (recommended) {
+            return ok(tutorService.recommended(userId, limit, minRating));
+        }
         return ok(tutorService.search(userId, course, name, minRating, taughtMeBefore, limit));
     }
 
-    @GetMapping("/{tutorId}")
+    @GetMapping("/tutors/{tutorId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> profile(@PathVariable Integer tutorId) {
         return ok(tutorService.profile(tutorId));
     }
 
-    @GetMapping("/{tutorId}/availability")
+    @GetMapping("/tutors/{tutorId}/availability")
     public ResponseEntity<ApiResponse<List<AvailabilityDto>>> availability(@PathVariable Integer tutorId) {
         return ok(tutorService.availability(tutorId));
     }

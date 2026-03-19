@@ -7,7 +7,7 @@ import com.tokenlearn.server.util.AuthUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,7 +19,7 @@ import java.util.Map;
 import static com.tokenlearn.server.controller.ApiResponses.ok;
 
 /**
- * Notification inbox endpoints for listing unread items, counting badges, and marking items as read.
+ * Notification inbox endpoints for listing items, exposing inbox statistics, and marking items as read.
  */
 @RestController
 @RequestMapping("/api/notifications")
@@ -30,33 +30,26 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    @GetMapping("/unread")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> unread(
-            Authentication authentication,
-            @RequestParam(defaultValue = "10") int limit) {
-        Integer userId = AuthUtil.requireUserId(authentication);
-        return ok(notificationService.unreadForUser(userId, limit));
-    }
-
     @GetMapping
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list(
             Authentication authentication,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(defaultValue = "false") boolean unreadOnly,
+            @RequestParam(required = false) Boolean read,
             @RequestParam(required = false) Integer lessonId,
             @RequestParam(required = false) String eventType) {
         Integer userId = AuthUtil.requireUserId(authentication);
+        boolean unreadOnly = Boolean.FALSE.equals(read);
         return ok(notificationService.listForUser(userId, limit, offset, unreadOnly, lessonId, eventType));
     }
 
-    @GetMapping("/unread-count")
+    @GetMapping("/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> unreadCount(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(notificationService.unreadCount(userId));
     }
 
-    @PostMapping("/read")
+    @PatchMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> markRead(
             Authentication authentication,
             @RequestBody(required = false) MarkNotificationsReadRequest request) {

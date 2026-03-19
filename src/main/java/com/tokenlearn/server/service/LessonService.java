@@ -15,6 +15,7 @@ import com.tokenlearn.server.domain.OutboxEventEntity;
 import com.tokenlearn.server.domain.RatingEntity;
 import com.tokenlearn.server.domain.TokenTransactionEntity;
 import com.tokenlearn.server.domain.UserEntity;
+import com.tokenlearn.server.dto.CreateRatingRequest;
 import com.tokenlearn.server.dto.CreateLessonMessageRequest;
 import com.tokenlearn.server.dto.RateLessonRequest;
 import com.tokenlearn.server.exception.AppException;
@@ -190,6 +191,7 @@ public class LessonService {
             result.put("ratedAt", rating.getCreatedAt());
             result.put("ratingEditableUntil", rating.getCreatedAt().plusHours(1));
             result.put("myRating", Map.of(
+                    "id", rating.getRatingId(),
                     "rating", rating.getScore(),
                     "comment", rating.getComment() == null ? "" : rating.getComment()));
         });
@@ -264,8 +266,9 @@ public class LessonService {
         if (ratingDao.findByLessonAndFromUser(lessonId, fromUserId).isPresent()) {
             throw new AppException(HttpStatus.CONFLICT, "ALREADY_RATED", "Lesson already rated by this user");
         }
+        Integer ratingId;
         try {
-            ratingDao.create(RatingEntity.builder()
+            ratingId = ratingDao.create(RatingEntity.builder()
                     .lessonId(lessonId)
                     .fromUserId(fromUserId)
                     .toUserId(toUserId)
@@ -276,6 +279,7 @@ public class LessonService {
             throw new AppException(HttpStatus.CONFLICT, "ALREADY_RATED", "Lesson already rated by this user");
         }
         return Map.of(
+                "ratingId", ratingId,
                 "lessonId", lessonId,
                 "rating", request.getRating(),
                 "comment", request.getComment() == null ? "" : request.getComment(),
@@ -309,12 +313,28 @@ public class LessonService {
         }
 
         return Map.of(
+                "ratingId", existingRating.getRatingId(),
                 "lessonId", lessonId,
                 "rating", request.getRating(),
                 "comment", request.getComment() == null ? "" : request.getComment(),
                 "ratedAt", existingRating.getCreatedAt(),
                 "ratingEditableUntil", editableUntil,
                 "updatedAt", LocalDateTime.now());
+    }
+
+    @Transactional
+    public Map<String, Object> createRating(Integer fromUserId, CreateRatingRequest request) {
+        return rateLesson(request.getLessonId(), fromUserId, request);
+    }
+
+    @Transactional
+    public Map<String, Object> updateRating(Integer ratingId, Integer fromUserId, RateLessonRequest request) {
+        RatingEntity existingRating = ratingDao.findById(ratingId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Rating not found"));
+        if (!existingRating.getFromUserId().equals(fromUserId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only the rating author can update this rating");
+        }
+        return updateLessonRating(existingRating.getLessonId(), fromUserId, request);
     }
 
     @Transactional

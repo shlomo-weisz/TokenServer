@@ -30,7 +30,7 @@ public class AdminController {
         this.adminService = adminService;
     }
 
-    @GetMapping("/dashboard")
+    @GetMapping("/analytics/summary")
     public ResponseEntity<ApiResponse<Map<String, Object>>> dashboard(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         adminService.requireAdmin(userId);
@@ -48,14 +48,14 @@ public class AdminController {
         return ok(adminService.users(limit, offset, role));
     }
 
-    @GetMapping("/statistics")
+    @GetMapping("/analytics/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> statistics(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         adminService.requireAdmin(userId);
         return ok(adminService.statistics());
     }
 
-    @PostMapping("/contact")
+    @PostMapping("/contacts")
     public ResponseEntity<ApiResponse<Map<String, Object>>> contact(
             Authentication authentication,
             @Valid @RequestBody ContactAdminRequest request) {
@@ -63,7 +63,7 @@ public class AdminController {
         return ok(adminService.contact(userId, request.getSubject(), request.getMessage()));
     }
 
-    @GetMapping("/contact/{contactId}/thread")
+    @GetMapping("/contacts/{contactId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> contactThread(
             Authentication authentication,
             @PathVariable Long contactId) {
@@ -71,31 +71,13 @@ public class AdminController {
         return ok(adminService.contactThread(userId, contactId));
     }
 
-    @PostMapping("/contact/{contactId}/reply")
+    @PostMapping("/contacts/{contactId}/messages")
     public ResponseEntity<ApiResponse<Map<String, Object>>> replyToContact(
             Authentication authentication,
             @PathVariable Long contactId,
             @Valid @RequestBody CreateAdminContactReplyRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(adminService.replyToContact(userId, contactId, request.getMessage()));
-    }
-
-    @PostMapping("/tutors/{tutorId}/block")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> blockTutor(
-            Authentication authentication,
-            @PathVariable Integer tutorId) {
-        Integer userId = AuthUtil.requireUserId(authentication);
-        adminService.requireAdmin(userId);
-        return ok(adminService.setTutorBlocked(tutorId, true));
-    }
-
-    @PostMapping("/tutors/{tutorId}/unblock")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> unblockTutor(
-            Authentication authentication,
-            @PathVariable Integer tutorId) {
-        Integer userId = AuthUtil.requireUserId(authentication);
-        adminService.requireAdmin(userId);
-        return ok(adminService.setTutorBlocked(tutorId, false));
     }
 
     @GetMapping("/lessons")
@@ -119,7 +101,7 @@ public class AdminController {
         return ok(adminService.listRatings(limit, offset));
     }
 
-    @PutMapping("/users/{userId}/tokens")
+    @PostMapping("/users/{userId}/token-adjustments")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateTokens(
             Authentication authentication,
             @PathVariable Integer userId,
@@ -129,7 +111,7 @@ public class AdminController {
         return ok(adminService.adjustTokens(userId, request));
     }
 
-    @GetMapping("/users/{userId}/tokens/history")
+    @GetMapping("/users/{userId}/token-transactions")
     public ResponseEntity<ApiResponse<Map<String, Object>>> userTokenHistory(
             Authentication authentication,
             @PathVariable Integer userId,
@@ -139,7 +121,7 @@ public class AdminController {
         return ok(adminService.userTokenHistory(adminId, userId, limit, offset));
     }
 
-    @PutMapping("/users/{userId}")
+    @PatchMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(
             Authentication authentication,
             @PathVariable Integer userId,
@@ -148,7 +130,7 @@ public class AdminController {
         return ok(adminService.updateUser(adminId, userId, request));
     }
 
-    @PutMapping("/ratings/{ratingId}")
+    @PatchMapping("/ratings/{ratingId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateRating(
             Authentication authentication,
             @PathVariable Integer ratingId,

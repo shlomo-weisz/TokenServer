@@ -4,6 +4,7 @@ import com.tokenlearn.server.security.JwtAuthenticationEntryPoint;
 import com.tokenlearn.server.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -43,15 +44,16 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/login",
-                                "/api/auth/register",
-                                "/api/auth/signup",
-                                "/api/auth/secret-question",
-                                "/api/auth/verify-secret-answer",
-                                "/api/auth/reset-password",
-                                "/api/auth/google",
-                                "/health",
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/session",
+                                "/api/users",
+                                "/api/password-reset-requests",
+                                "/api/password-reset-tokens",
+                                "/api/password-reset-completions",
+                                "/api/identity-providers/google/sessions")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/system/status",
                                 "/actuator/**")
                         .permitAll()
                         .anyRequest().authenticated())
@@ -75,7 +77,7 @@ public class SecurityConfig {
                 "http://localhost:5174",
                 "https://*.trycloudflare.com",
                 "https://token-learn.vercel.app"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -79,7 +79,7 @@ Notes:
 - When running from source, the default catalog path is `../openu_all_courses.json`.
 - In Docker, the compose file mounts the catalog file to `/app/openu_all_courses.json`.
 - If you do not want catalog sync in an environment, set `APP_COURSE_CATALOG_ENABLED=false`.
-- If `google.client-id` is empty, `/api/auth/google` will return a configuration error.
+- If `google.client-id` is empty, `/api/identity-providers/google/sessions` will return a configuration error.
 
 ### Docker Compose secret handling
 
@@ -154,7 +154,7 @@ mvn spring-boot:run
 6. Verify the server:
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8080/api/system/status
 ```
 
 Expected response:
@@ -207,7 +207,7 @@ docker compose restart tokenlearn-server
 7. Verify health:
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8080/api/system/status
 ```
 
 Useful checks:
@@ -330,7 +330,7 @@ docker compose restart tokenlearn-server
 ### Validate the deployment
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8080/api/system/status
 docker compose ps
 docker compose logs --tail=100 tokenlearn-server
 ```
@@ -349,7 +349,7 @@ docker compose logs --tail=100 tokenlearn-server
 
 ### Health and startup
 
-- `GET /health` returns the API health envelope
+- `GET /api/system/status` returns the API status envelope
 - Flyway runs on server startup
 - course catalog sync also runs on startup when enabled
 
@@ -373,16 +373,23 @@ All balance-changing operations are also recorded in `token_transactions`.
 
 ## API Groups
 
-- `/api/auth/*`
+- `/api/session`
+- `/api/identity-providers/google/sessions`
+- `/api/password-reset-*`
+- `/api/profile`
 - `/api/users/*`
-- `/api/tokens/*`
+- `/api/wallet`
+- `/api/token-purchases`
+- `/api/token-transfers`
+- `/api/token-transactions`
 - `/api/courses/*`
 - `/api/lesson-requests/*`
 - `/api/lessons/*`
+- `/api/ratings/*`
 - `/api/tutors/*`
 - `/api/notifications/*`
 - `/api/admin/*`
-- `/health`
+- `/api/system/status`
 
 Every API response is wrapped as:
 
