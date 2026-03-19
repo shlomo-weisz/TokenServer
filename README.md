@@ -79,7 +79,7 @@ Notes:
 - When running from source, the default catalog path is `../openu_all_courses.json`.
 - In Docker, the compose file mounts the catalog file to `/app/openu_all_courses.json`.
 - If you do not want catalog sync in an environment, set `APP_COURSE_CATALOG_ENABLED=false`.
-- If `google.client-id` is empty, `/api/identity-providers/google/sessions` will return a configuration error.
+- If `google.client-id` is empty, `POST /api/sessions` with `googleToken` will return a configuration error.
 
 ### Docker Compose secret handling
 
@@ -160,7 +160,7 @@ curl http://localhost:8080/api/system/status
 Expected response:
 
 ```json
-{"success":true,"data":{"status":"UP"}}
+{"status":"UP"}
 ```
 
 ### Run everything with Docker Compose
@@ -349,7 +349,7 @@ docker compose logs --tail=100 tokenlearn-server
 
 ### Health and startup
 
-- `GET /api/system/status` returns the API status envelope
+- `GET /api/system/status` returns the direct API status payload
 - Flyway runs on server startup
 - course catalog sync also runs on startup when enabled
 
@@ -373,42 +373,35 @@ All balance-changing operations are also recorded in `token_transactions`.
 
 ## API Groups
 
-- `/api/session`
-- `/api/identity-providers/google/sessions`
-- `/api/password-reset-*`
-- `/api/profile`
-- `/api/users/*`
-- `/api/wallet`
-- `/api/token-purchases`
-- `/api/token-transfers`
-- `/api/token-transactions`
+- `/api/sessions`
+- `/api/password-reset-requests*`
+- `/api/users`
+- `/api/users/me`
+- `/api/users/me/photo`
+- `/api/users/me/wallet`
+- `/api/users/me/token-transactions`
+- `/api/users/{userId}`
+- `/api/users/{userId}/ratings`
+- `/api/users/{userId}/token-transactions`
 - `/api/courses/*`
 - `/api/lesson-requests/*`
 - `/api/lessons/*`
 - `/api/ratings/*`
 - `/api/tutors/*`
 - `/api/notifications/*`
-- `/api/admin/*`
+- `/api/support-threads/*`
+- `/api/admin/reports/*`
 - `/api/system/status`
 
-Every API response is wrapped as:
+Successful API responses return direct JSON resources. Errors are returned as RFC 9457 problem documents (`application/problem+json`), for example:
 
 ```json
 {
-  "success": true,
-  "data": {}
-}
-```
-
-Or on error:
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable message"
-  }
+  "type": "urn:tokenlearn:problem:invalid_request",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "The request is invalid",
+  "code": "INVALID_REQUEST"
 }
 ```
 

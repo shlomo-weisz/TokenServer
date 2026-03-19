@@ -1,7 +1,6 @@
 package com.tokenlearn.server.controller;
 
-import com.tokenlearn.server.dto.ApiResponse;
-import com.tokenlearn.server.dto.MarkNotificationsReadRequest;
+import com.tokenlearn.server.dto.UpdateNotificationReadStateRequest;
 import com.tokenlearn.server.service.NotificationService;
 import com.tokenlearn.server.util.AuthUtil;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-import static com.tokenlearn.server.controller.ApiResponses.ok;
+import static com.tokenlearn.server.controller.RestResponses.ok;
 
 /**
  * Notification inbox endpoints for listing items, exposing inbox statistics, and marking items as read.
@@ -31,7 +30,7 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list(
+    public ResponseEntity<List<Map<String, Object>>> list(
             Authentication authentication,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset,
@@ -43,16 +42,16 @@ public class NotificationController {
         return ok(notificationService.listForUser(userId, limit, offset, unreadOnly, lessonId, eventType));
     }
 
-    @GetMapping("/statistics")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> unreadCount(Authentication authentication) {
+    @GetMapping("/unread-count")
+    public ResponseEntity<Map<String, Object>> unreadCount(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(notificationService.unreadCount(userId));
     }
 
     @PatchMapping
-    public ResponseEntity<ApiResponse<Map<String, Object>>> markRead(
+    public ResponseEntity<Map<String, Object>> markRead(
             Authentication authentication,
-            @RequestBody(required = false) MarkNotificationsReadRequest request) {
+            @RequestBody(required = false) UpdateNotificationReadStateRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
         List<Long> ids = request == null ? null : request.getIds();
         return ok(notificationService.markRead(userId, ids));

@@ -11,13 +11,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
-import static com.tokenlearn.server.controller.ApiResponses.ok;
+import static com.tokenlearn.server.controller.RestResponses.ok;
 
 /**
  * Endpoints for the authenticated profile singleton and public user profile lookups.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/users")
 public class UserController {
     private final UserService userService;
 
@@ -25,22 +25,22 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("/profile")
-    public ResponseEntity<ApiResponse<UserProfileDto>> profile(Authentication authentication) {
+    @GetMapping("/me")
+    public ResponseEntity<UserProfileDto> profile(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(userService.getProfile(userId, true));
     }
 
-    @PatchMapping("/profile")
-    public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(
+    @PatchMapping("/me")
+    public ResponseEntity<UserProfileDto> updateProfile(
             Authentication authentication,
             @Valid @RequestBody UpdateUserProfileRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(userService.updateProfile(userId, request));
     }
 
-    @PutMapping("/profile/photo")
-    public ResponseEntity<ApiResponse<Map<String, String>>> uploadPhoto(
+    @PutMapping("/me/photo")
+    public ResponseEntity<Map<String, String>> uploadPhoto(
             Authentication authentication,
             @RequestPart("file") MultipartFile file) {
         Integer userId = AuthUtil.requireUserId(authentication);
@@ -48,13 +48,13 @@ public class UserController {
         return ok(Map.of("photoUrl", photoUrl));
     }
 
-    @GetMapping("/users/{userId}")
-    public ResponseEntity<ApiResponse<UserProfileDto>> byId(@PathVariable Integer userId) {
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserProfileDto> byId(@PathVariable Integer userId) {
         return ok(userService.getProfile(userId, false));
     }
 
-    @GetMapping("/users/{userId}/ratings")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> ratings(@PathVariable Integer userId) {
+    @GetMapping("/{userId}/ratings")
+    public ResponseEntity<Map<String, Object>> ratings(@PathVariable Integer userId) {
         return ok(userService.getUserRatings(userId));
     }
 }

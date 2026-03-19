@@ -67,9 +67,15 @@ public class AdminService {
         }
     }
 
+    public boolean isAdmin(Integer userId) {
+        return Boolean.TRUE.equals(requireUser(userId).getIsAdmin());
+    }
+
     public Map<String, Object> dashboard() {
         return Map.of(
                 "totalUsers", adminDao.totalUsers(),
+                "totalTutors", adminDao.totalTutors(),
+                "totalStudents", adminDao.totalStudents(),
                 "totalLessons", adminDao.totalLessons(),
                 "totalRequests", adminDao.totalRequests(),
                 "pendingRequests", adminDao.pendingRequests(),
@@ -216,8 +222,7 @@ public class AdminService {
                 normalizedMessage,
                 adminDao.findActiveAdminIds());
         return Map.of(
-                "id", "contact_" + contactId,
-                "contactId", contactId,
+                "id", contactId,
                 "status", "submitted",
                 "submittedAt", LocalDateTime.now(),
                 "actionPath", "/messages?contact=" + contactId);
@@ -233,7 +238,7 @@ public class AdminService {
 
         UserEntity owner = userDao.findById(contact.getUserId()).orElse(null);
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("contactId", contact.getContactId());
+        out.put("id", contact.getContactId());
         out.put("subject", contact.getSubject());
         out.put("status", normalizeContactStatus(contact.getStatus()));
         out.put("submittedAt", contact.getSubmittedAt());
@@ -268,8 +273,8 @@ public class AdminService {
         adminDao.updateContactStatus(contactId, "IN_PROGRESS");
 
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("notificationId", notificationId);
-        out.put("contactId", contactId);
+        out.put("id", notificationId);
+        out.put("threadId", contactId);
         out.put("message", normalizedMessage);
         out.put("status", "in_progress");
         out.put("sentAt", LocalDateTime.now());
@@ -328,9 +333,15 @@ public class AdminService {
             }
         } else {
             BigDecimal unchangedTotal = userDao.getBalances(userId).getTotal();
-            return Map.of("userId", userId, "newBalance", unchangedTotal, "adjustment", amount, "noOp", true);
+            return Map.of(
+                    "id", null,
+                    "type", "admin_adjustment",
+                    "status", "no_op",
+                    "userId", userId,
+                    "amount", amount,
+                    "balanceAfter", unchangedTotal);
         }
-        tokenTransactionDao.create(TokenTransactionEntity.builder()
+        Long txId = tokenTransactionDao.create(TokenTransactionEntity.builder()
                 .payerId(userId)
                 .receiverId(userId)
                 .amount(amount)
@@ -339,7 +350,13 @@ public class AdminService {
                 .description(request.getReason() == null ? "Balance adjusted by administrator" : request.getReason())
                 .build());
         BigDecimal newTotal = userDao.getBalances(userId).getTotal();
-        return Map.of("userId", userId, "newBalance", newTotal, "adjustment", amount);
+        return Map.of(
+                "id", "txn_" + txId,
+                "type", "admin_adjustment",
+                "status", "succeeded",
+                "userId", userId,
+                "amount", amount,
+                "balanceAfter", newTotal);
     }
 
     public Map<String, Object> userTokenHistory(Integer adminId, Integer userId, int limit, int offset) {

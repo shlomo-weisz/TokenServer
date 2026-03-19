@@ -1,6 +1,5 @@
 package com.tokenlearn.server.controller;
 
-import com.tokenlearn.server.dto.ApiResponse;
 import com.tokenlearn.server.service.CourseService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,9 +7,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
-import static com.tokenlearn.server.controller.ApiResponses.ok;
+import static com.tokenlearn.server.controller.RestResponses.ok;
 
 /**
  * Read-only course catalog endpoints used by course search and category selection flows.
@@ -25,15 +25,15 @@ public class CourseController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Map<String, Object>>> all(
+    public ResponseEntity<List<Map<String, Object>>> all(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) Integer limit) {
-        return ok(Map.of("courses", courseService.getCourses(search, category, limit)));
+        return ok(courseService.getCourses(search, category, limit));
     }
 
     @GetMapping("/categories")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> categories() {
-        return ok(Map.of("categories", courseService.getCategories()));
+    public ResponseEntity<List<String>> categories() {
+        return ok(courseService.getCategories());
     }
 }

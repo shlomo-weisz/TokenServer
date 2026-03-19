@@ -54,7 +54,7 @@ public class TokenService {
     public Map<String, Object> getBalance(Integer userId) {
         TokenBalancesDto b = userDao.getBalances(userId);
         return Map.of(
-                "balance", b.getTotal(),
+                "id", "current",
                 "total", b.getTotal(),
                 "available", b.getAvailable(),
                 "locked", b.getLocked(),
@@ -77,7 +77,12 @@ public class TokenService {
                 .description("Tokens added by purchase")
                 .build());
         TokenBalancesDto b = userDao.getBalances(userId);
-        return Map.of("success", true, "newBalance", b.getTotal(), "transactionId", "txn_" + txId);
+        return Map.of(
+                "id", "txn_" + txId,
+                "type", "purchase",
+                "status", "succeeded",
+                "amount", request.getAmount(),
+                "balanceAfter", b.getTotal());
     }
 
     @Transactional
@@ -100,7 +105,14 @@ public class TokenService {
                 .description(request.getReason() == null ? "Tokens transferred to another user" : request.getReason())
                 .build());
         TokenBalancesDto b = userDao.getBalances(fromUserId);
-        return Map.of("success", true, "newBalance", b.getTotal(), "transactionId", "txn_" + txId);
+        return Map.of(
+                "id", "txn_" + txId,
+                "type", "transfer",
+                "status", "succeeded",
+                "amount", request.getAmount(),
+                "toUserId", to.getUserId(),
+                "lessonId", request.getLessonId(),
+                "balanceAfter", b.getTotal());
     }
 
     public Map<String, Object> history(Integer userId, int limit, int offset) {
@@ -143,7 +155,7 @@ public class TokenService {
             }
             return item;
         }).toList();
-        return Map.of("transactions", txs, "totalCount", transactionDao.countByUser(userId));
+        return Map.of("items", txs, "totalCount", transactionDao.countByUser(userId));
     }
 
     private LessonContext resolveLessonContext(

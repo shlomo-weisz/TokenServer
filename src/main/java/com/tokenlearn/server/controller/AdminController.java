@@ -1,28 +1,31 @@
 package com.tokenlearn.server.controller;
 
-import com.tokenlearn.server.dto.ApiResponse;
-import com.tokenlearn.server.dto.AdminUpdateRatingRequest;
 import com.tokenlearn.server.dto.AdminUpdateUserRequest;
 import com.tokenlearn.server.dto.ContactAdminRequest;
+import com.tokenlearn.server.dto.CreateTokenTransactionRequest;
 import com.tokenlearn.server.dto.CreateAdminContactReplyRequest;
 import com.tokenlearn.server.dto.UpdateUserTokensRequest;
+import com.tokenlearn.server.exception.AppException;
 import com.tokenlearn.server.service.AdminService;
 import com.tokenlearn.server.util.AuthUtil;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
-import static com.tokenlearn.server.controller.ApiResponses.ok;
+import static com.tokenlearn.server.controller.RestResponses.created;
+import static com.tokenlearn.server.controller.RestResponses.ok;
 
 /**
  * Administrative REST endpoints for moderation, reporting, and manual account maintenance.
  */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api")
 public class AdminController {
     private final AdminService adminService;
 
@@ -30,15 +33,15 @@ public class AdminController {
         this.adminService = adminService;
     }
 
-    @GetMapping("/analytics/summary")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> dashboard(Authentication authentication) {
+    @GetMapping("/admin/reports/summary")
+    public ResponseEntity<Map<String, Object>> dashboard(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         adminService.requireAdmin(userId);
         return ok(adminService.dashboard());
     }
 
     @GetMapping("/users")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> users(
+    public ResponseEntity<List<Map<String, Object>>> users(
             Authentication authentication,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "0") int offset,
@@ -48,31 +51,36 @@ public class AdminController {
         return ok(adminService.users(limit, offset, role));
     }
 
-    @GetMapping("/analytics/statistics")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> statistics(Authentication authentication) {
+    @GetMapping("/admin/reports/statistics")
+    public ResponseEntity<Map<String, Object>> statistics(Authentication authentication) {
         Integer userId = AuthUtil.requireUserId(authentication);
         adminService.requireAdmin(userId);
         return ok(adminService.statistics());
     }
 
-    @PostMapping("/contacts")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> contact(
+    @PostMapping("/support-threads")
+    public ResponseEntity<Map<String, Object>> contact(
             Authentication authentication,
             @Valid @RequestBody ContactAdminRequest request) {
         Integer userId = AuthUtil.requireUserId(authentication);
-        return ok(adminService.contact(userId, request.getSubject(), request.getMessage()));
+        Map<String, Object> payload = adminService.contact(userId, request.getSubject(), request.getMessage());
+        Object contactId = payload.get("id");
+        URI location = contactId == null
+                ? URI.create("/api/support-threads")
+                : URI.create("/api/support-threads/" + contactId);
+        return created(location, payload);
     }
 
-    @GetMapping("/contacts/{contactId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> contactThread(
+    @GetMapping("/support-threads/{contactId}")
+    public ResponseEntity<Map<String, Object>> contactThread(
             Authentication authentication,
             @PathVariable Long contactId) {
         Integer userId = AuthUtil.requireUserId(authentication);
         return ok(adminService.contactThread(userId, contactId));
     }
 
-    @PostMapping("/contacts/{contactId}/messages")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> replyToContact(
+    @PostMapping("/support-threads/{contactId}/messages")
+    public ResponseEntity<Map<String, Object>> replyToContact(
             Authentication authentication,
             @PathVariable Long contactId,
             @Valid @RequestBody CreateAdminContactReplyRequest request) {
@@ -80,39 +88,24 @@ public class AdminController {
         return ok(adminService.replyToContact(userId, contactId, request.getMessage()));
     }
 
-    @GetMapping("/lessons")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> lessons(
-            Authentication authentication,
-            @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "50") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
-        Integer userId = AuthUtil.requireUserId(authentication);
-        adminService.requireAdmin(userId);
-        return ok(adminService.listLessons(status, limit, offset));
-    }
-
-    @GetMapping("/ratings")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> ratings(
-            Authentication authentication,
-            @RequestParam(defaultValue = "100") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
-        Integer userId = AuthUtil.requireUserId(authentication);
-        adminService.requireAdmin(userId);
-        return ok(adminService.listRatings(limit, offset));
-    }
-
-    @PostMapping("/users/{userId}/token-adjustments")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateTokens(
+    @PostMapping("/users/{userId}/token-transactions")
+    public ResponseEntity<Map<String, Object>> updateTokens(
             Authentication authentication,
             @PathVariable Integer userId,
-            @Valid @RequestBody UpdateUserTokensRequest request) {
+            @Valid @RequestBody CreateTokenTransactionRequest request) {
         Integer adminId = AuthUtil.requireUserId(authentication);
         adminService.requireAdmin(adminId);
-        return ok(adminService.adjustTokens(userId, request));
+        if (request.getAmount() == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "amount is required");
+        }
+        UpdateUserTokensRequest adjustment = new UpdateUserTokensRequest();
+        adjustment.setAmount(request.getAmount());
+        adjustment.setReason(request.getReason());
+        return ok(adminService.adjustTokens(userId, adjustment));
     }
 
     @GetMapping("/users/{userId}/token-transactions")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> userTokenHistory(
+    public ResponseEntity<Map<String, Object>> userTokenHistory(
             Authentication authentication,
             @PathVariable Integer userId,
             @RequestParam(defaultValue = "50") int limit,
@@ -122,7 +115,7 @@ public class AdminController {
     }
 
     @PatchMapping("/users/{userId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(
+    public ResponseEntity<Map<String, Object>> updateUser(
             Authentication authentication,
             @PathVariable Integer userId,
             @Valid @RequestBody AdminUpdateUserRequest request) {
@@ -130,17 +123,8 @@ public class AdminController {
         return ok(adminService.updateUser(adminId, userId, request));
     }
 
-    @PatchMapping("/ratings/{ratingId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateRating(
-            Authentication authentication,
-            @PathVariable Integer ratingId,
-            @Valid @RequestBody AdminUpdateRatingRequest request) {
-        Integer adminId = AuthUtil.requireUserId(authentication);
-        return ok(adminService.updateRating(adminId, ratingId, request));
-    }
-
     @DeleteMapping("/users/{userId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteUser(
+    public ResponseEntity<Map<String, Object>> deleteUser(
             Authentication authentication,
             @PathVariable Integer userId) {
         Integer adminId = AuthUtil.requireUserId(authentication);

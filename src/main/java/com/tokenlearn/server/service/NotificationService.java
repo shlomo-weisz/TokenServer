@@ -200,6 +200,12 @@ public class NotificationService {
                 .toList();
     }
 
+    public List<Map<String, Object>> lessonMessageThreadForUser(Integer userId, Integer lessonId, int limit, int offset) {
+        return notificationDao.findByUser(userId, limit, offset, false, lessonId, EVENT_LESSON_MESSAGE, null).stream()
+                .map(notification -> toPayload(notification, userId))
+                .toList();
+    }
+
     public List<Map<String, Object>> unreadForUser(Integer userId, int limit) {
         return notificationDao.findUnreadByUser(userId, limit).stream()
                 .map(notification -> toPayload(notification, userId))

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 /**
- * Returns the application's standard JSON error envelope when an unauthenticated request is rejected.
+ * Returns an RFC 9457 problem document when an unauthenticated request is rejected.
  */
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
@@ -17,7 +17,15 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-        response.getWriter().write("{\"success\":false,\"data\":null,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Unauthorized\"}}");
+        response.setContentType("application/problem+json");
+        response.getWriter().write("""
+                {
+                  "type":"urn:tokenlearn:problem:unauthorized",
+                  "title":"Unauthorized",
+                  "status":401,
+                  "detail":"Unauthorized",
+                  "code":"UNAUTHORIZED"
+                }
+                """);
     }
 }

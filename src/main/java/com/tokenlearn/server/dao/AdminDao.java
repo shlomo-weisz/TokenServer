@@ -39,6 +39,22 @@ public class AdminDao {
         return value == null ? 0 : value;
     }
 
+    public int totalTutors() {
+        Integer value = jdbc.queryForObject(
+                "SELECT COUNT(DISTINCT user_id) FROM user_courses_teacher",
+                new MapSqlParameterSource(),
+                Integer.class);
+        return value == null ? 0 : value;
+    }
+
+    public int totalStudents() {
+        Integer value = jdbc.queryForObject(
+                "SELECT COUNT(DISTINCT user_id) FROM user_courses_student",
+                new MapSqlParameterSource(),
+                Integer.class);
+        return value == null ? 0 : value;
+    }
+
     public int totalLessons() {
         Integer value = jdbc.queryForObject("SELECT COUNT(*) FROM lessons", new MapSqlParameterSource(), Integer.class);
         return value == null ? 0 : value;

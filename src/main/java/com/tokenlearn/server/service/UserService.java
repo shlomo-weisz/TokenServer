@@ -130,6 +130,7 @@ public class UserService {
     private Map<String, Object> toRatingItem(RatingEntity rating) {
         UserEntity from = requireUser(rating.getFromUserId());
         return Map.of(
+                "id", rating.getRatingId(),
                 "ratedBy", from.getFirstName() + " " + from.getLastName(),
                 "rating", rating.getScore(),
                 "comment", rating.getComment() == null ? "" : rating.getComment());

@@ -120,6 +120,17 @@ public class LessonDao {
                 .addValue("offset", offset), mapper);
     }
 
+    public int countHistoryByUser(Integer userId) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM lessons
+                WHERE (student_id=:userId OR tutor_id=:userId)
+                  AND status IN ('COMPLETED','CANCELLED')
+                """;
+        Integer count = jdbc.queryForObject(sql, new MapSqlParameterSource("userId", userId), Integer.class);
+        return count == null ? 0 : count;
+    }
+
     public List<LessonEntity> findAllForAdmin(String status, int limit, int offset) {
         String sql = """
                 SELECT * FROM lessons

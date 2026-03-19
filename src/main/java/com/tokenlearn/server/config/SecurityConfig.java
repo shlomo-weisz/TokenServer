@@ -45,12 +45,15 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST,
-                                "/api/session",
+                                "/api/sessions",
                                 "/api/users",
-                                "/api/password-reset-requests",
-                                "/api/password-reset-tokens",
-                                "/api/password-reset-completions",
-                                "/api/identity-providers/google/sessions")
+                                "/api/password-reset-requests")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.PATCH,
+                                "/api/password-reset-requests/*")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/password-reset-requests/*/password")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/system/status",

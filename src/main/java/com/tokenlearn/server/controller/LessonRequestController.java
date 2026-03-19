@@ -10,10 +10,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
-import static com.tokenlearn.server.controller.ApiResponses.ok;
+import static com.tokenlearn.server.controller.RestResponses.created;
+import static com.tokenlearn.server.controller.RestResponses.ok;
 
 /**
  * Endpoints for creating, reviewing, and cancelling lesson requests before they become scheduled lessons.
@@ -28,7 +30,7 @@ public class LessonRequestController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list(
+    public ResponseEntity<List<Map<String, Object>>> list(
             Authentication authentication,
             @RequestParam String role,
             @RequestParam(required = false) String status) {
@@ -41,15 +43,20 @@ public class LessonRequestController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Map<String, Object>>> create(
+    public ResponseEntity<Map<String, Object>> create(
             Authentication authentication,
             @Valid @RequestBody CreateLessonRequestInputDto request) {
         Integer userId = AuthUtil.requireUserId(authentication);
-        return ok(lessonRequestService.create(userId, request));
+        Map<String, Object> payload = lessonRequestService.create(userId, request);
+        Object requestId = payload.get("requestId");
+        URI location = requestId == null
+                ? URI.create("/api/lesson-requests")
+                : URI.create("/api/lesson-requests/" + requestId);
+        return created(location, payload);
     }
 
     @PatchMapping("/{requestId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateStatus(
+    public ResponseEntity<Map<String, Object>> updateStatus(
             Authentication authentication,
             @PathVariable Integer requestId,
             @Valid @RequestBody UpdateLessonRequestStatusRequest request) {

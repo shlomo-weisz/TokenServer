@@ -186,6 +186,7 @@ public class LessonService {
         result.put("studentName", student == null ? "" : student.getFirstName() + " " + student.getLastName());
         result.put("tutorId", lesson.getTutorId());
         result.put("tutorName", tutor == null ? "" : tutor.getFirstName() + " " + tutor.getLastName());
+        result.put("tutorRating", ratingDao.averageForUser(lesson.getTutorId()));
         putCourseFields(result, course, "course");
         result.put("dateTime", lesson.getStartTime());
         result.put("startTime", lesson.getStartTime());
@@ -221,6 +222,10 @@ public class LessonService {
             out.put("status", lesson.getStatus().toLowerCase());
             return out;
         }).toList();
+    }
+
+    public int historyCount(Integer userId) {
+        return lessonDao.countHistoryByUser(userId);
     }
 
     public Map<String, Object> calendar(Integer userId, String role, String status, LocalDateTime from, LocalDateTime to) {
@@ -366,6 +371,13 @@ public class LessonService {
         out.put("message", messageBody);
         out.put("sentAt", LocalDateTime.now());
         return out;
+    }
+
+    public void assertParticipant(Integer lessonId, Integer userId) {
+        LessonEntity lesson = requireLesson(lessonId);
+        if (!isParticipant(lesson, userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only lesson participants can access lesson messages");
+        }
     }
 
     private LessonEntity requireLesson(Integer lessonId) {

@@ -1,6 +1,5 @@
 package com.tokenlearn.server.controller;
 
-import com.tokenlearn.server.dto.ApiResponse;
 import com.tokenlearn.server.dto.AvailabilityDto;
 import com.tokenlearn.server.service.TutorService;
 import com.tokenlearn.server.util.AuthUtil;
@@ -16,7 +15,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
-import static com.tokenlearn.server.controller.ApiResponses.ok;
+import static com.tokenlearn.server.controller.RestResponses.ok;
 
 /**
  * Tutor discovery endpoints covering filtered listings, public profiles, and availability.
@@ -31,7 +30,7 @@ public class TutorController {
     }
 
     @GetMapping("/tutors")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> search(
+    public ResponseEntity<List<Map<String, Object>>> search(
             Authentication authentication,
             @RequestParam(defaultValue = "false") boolean recommended,
             @RequestParam(required = false) String course,
@@ -47,12 +46,12 @@ public class TutorController {
     }
 
     @GetMapping("/tutors/{tutorId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> profile(@PathVariable Integer tutorId) {
+    public ResponseEntity<Map<String, Object>> profile(@PathVariable Integer tutorId) {
         return ok(tutorService.profile(tutorId));
     }
 
     @GetMapping("/tutors/{tutorId}/availability")
-    public ResponseEntity<ApiResponse<List<AvailabilityDto>>> availability(@PathVariable Integer tutorId) {
+    public ResponseEntity<List<AvailabilityDto>> availability(@PathVariable Integer tutorId) {
         return ok(tutorService.availability(tutorId));
     }
 }
