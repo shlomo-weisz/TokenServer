@@ -111,6 +111,12 @@ public class LessonService {
         if (hasLessonEnded(lesson, LocalDateTime.now())) {
             throw new AppException(HttpStatus.CONFLICT, "LESSON_ALREADY_ENDED", "Past lessons cannot be cancelled");
         }
+        if (!lesson.getTutorId().equals(actorId)) {
+            throw new AppException(
+                    HttpStatus.FORBIDDEN,
+                    "ONLY_TUTOR_CAN_CANCEL_SCHEDULED_LESSON",
+                    "Only the tutor can cancel a scheduled lesson after approval");
+        }
 
         LessonRequestEntity request = requireRequest(lesson.getRequestId());
 

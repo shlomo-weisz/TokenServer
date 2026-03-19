@@ -139,6 +139,21 @@ class LessonServiceTest {
     }
 
     @Test
+    void cancelLessonFailsWhenStudentTriesToCancelApprovedLesson() {
+        LocalDateTime start = LocalDateTime.now().plusHours(2);
+        LocalDateTime end = start.plusHours(1);
+        LessonEntity lesson = scheduledLesson(802, 62, 12, 77, start, end);
+
+        when(lessonDao.findById(802)).thenReturn(Optional.of(lesson));
+
+        AppException ex = assertThrows(AppException.class, () -> lessonService.cancelLesson(802, 12, "Student cancel"));
+
+        assertEquals("ONLY_TUTOR_CAN_CANCEL_SCHEDULED_LESSON", ex.getCode());
+        verify(lessonRequestDao, never()).findById(any());
+        verify(lessonDao, never()).updateStatus(any(), anyString());
+    }
+
+    @Test
     void completeLessonReturnsCompletedPayloadIfAlreadyCompletedDuringRace() {
         LocalDateTime end = LocalDateTime.now().minusMinutes(1);
         LessonEntity lesson = scheduledLesson(701, 91, 19, 28, end.minusHours(1), end);
