@@ -51,9 +51,10 @@ server/
 
 ## Configuration
 
-Default configuration lives in `src/main/resources/application.properties`.
-For local non-Docker runs, prefer overriding values with environment variables
-instead of editing the committed file.
+Default configuration lives in `src/main/resources/application.properties`, but
+the runtime values are now sourced from environment variables. For local runs,
+the server imports `server/.env` automatically when present, so you should edit
+`.env` instead of the committed properties file.
 
 Important settings:
 
@@ -75,6 +76,8 @@ Important settings:
 
 Notes:
 
+- The local `.env` template uses `TOKENLEARN_*` keys. `application.properties`
+  maps those keys into the Spring properties above automatically.
 - Flyway is enabled by default and runs automatically on startup.
 - When running from source, the default catalog path is `../openu_all_courses.json`.
 - In Docker, the compose file mounts the catalog file to `/app/openu_all_courses.json`.
@@ -105,7 +108,8 @@ Variables loaded from `.env` include:
 - `TOKENLEARN_JWT_SECRET`
 - `TOKENLEARN_GOOGLE_CLIENT_ID`
 
-`docker compose` loads `.env` automatically from the `server/` directory.
+Both Spring Boot local runs and `docker compose` load `.env` from the `server/`
+directory.
 
 ## Local Development
 
@@ -137,13 +141,14 @@ Stop the log tail once you see `SQL Server is now ready for client connections`.
 docker exec tokenlearn-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "YourStrong!Passw0rd" -Q "IF DB_ID('tokenlearn') IS NULL CREATE DATABASE tokenlearn;"
 ```
 
-4. Review local config in `src/main/resources/application.properties`.
+4. Copy `.env.example` to `.env` if you have not already, then edit the values
+   you need for your local run.
 
-The default local file already points to:
+The local app reads `.env` automatically. The standard template controls:
 
-- SQL Server on `localhost:1433`
-- Artemis on `localhost:61616`
-- port `8080`
+- `TOKENLEARN_SQLSERVER_PORT` for SQL Server, usually `1433`
+- `TOKENLEARN_ARTEMIS_BROKER_PORT` for Artemis, usually `61616`
+- `TOKENLEARN_SERVER_PORT` for the backend HTTP port, usually `8080`
 
 5. Start the app:
 
